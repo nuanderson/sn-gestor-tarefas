@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Colaboradores{% endblock %}
+{% block nav_colaboradores %}active{% endblock %}
+{% block page_title %}Colaboradores{% endblock %}
+{% block page_subtitle_text %}Desempenho da equipe no mês{% endblock %}
+
+{% block header_actions %}
+<select id="sel-mes" class="form-control" style="width:auto;padding:6px 12px;font-size:12px;" onchange="carregar()">
+  <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+  <option value="3">Março</option><option value="4">Abril</option>
+  <option value="5">Maio</option><option value="6">Junho</option>
+  <option value="7">Julho</option><option value="8">Agosto</option>
+  <option value="9">Setembro</option><option value="10">Outubro</option>
+  <option value="11">Novembro</option><option value="12">Dezembro</option>
+</select>
+<select id="sel-ano" class="form-control" style="width:auto;padding:6px 12px;font-size:12px;" onchange="carregar()"></select>
+{% endblock %}
+
+{% block content %}
+<div id="lista-colaboradores" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;">
+  <div class="card skeleton" style="height:180px;"></div>
+  <div class="card skeleton" style="height:180px;"></div>
+  <div class="card skeleton" style="height:180px;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const anoAtual = new Date().getFullYear();
+const selAno = document.getElementById('sel-ano');
+for (let a = anoAtual - 1; a <= anoAtual + 1; a++) {
+  const opt = document.createElement('option');
+  opt.value = a; opt.textContent = a;
+  if (a === anoAtual) opt.selected = true;
+  selAno.appendChild(opt);
+}
+document.getElementById('sel-mes').value = new Date().getMonth() + 1;
+
+async function carregar() {
+  const mes = document.getElementById('sel-mes').value;
+  const ano = document.getElementById('sel-ano').value;
+  try {
+    const d = await api.get('/api/v1/dashboard/colaboradores/', { mes, ano });
+    renderColaboradores(d.colaboradores);
+  } catch(e) {
+    toast('Erro ao carregar: ' + e.message, 'error');
+  }
+}
+
+function renderColaboradores(lista) {
+  const el = document.getElementById('lista-colaboradores');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state"><p>Nenhum colaborador encontrado.</p></div>';
+    return;
+  }
+  el.innerHTML = lista.map(c => {
+    const pct_t = c.meta_tarefas ? Math.min(Math.round(c.tarefas_concluidas_mes / c.meta_tarefas * 100), 100) : null;
+    const pct_h = c.meta_horas    ? Math.min(Math.round(c.horas_registradas_mes  / c.meta_horas    * 100), 100) : null;
+    const corStatus = c.tarefas_atrasadas > 0 ? 'var(--red)' : 'var(--green)';
+
+    return `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0;">${c.iniciais}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${c.nome}</div>
+          <div style="font-size:11px;color:var(--muted);">${c.perfil}</div>
+        </div>
+        ${c.tarefas_atrasadas > 0
+          ? `<span style="background:var(--red-bg,rgba(239,68,68,.15));color:var(--red);font-size:11px;padding:2px 8px;border-radius:20px;">${c.tarefas_atrasadas} atrasada${c.tarefas_atrasadas>1?'s':''}</span>`
+          : ''}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;text-align:center;">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--gold);">${c.tarefas_concluidas_mes}</div>
+          <div style="font-size:10px;color:var(--muted);">Concluídas</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text);">${c.tarefas_em_aberto}</div>
+          <div style="font-size:10px;color:var(--muted);">Em aberto</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--green);">${c.horas_registradas_mes}h</div>
+          <div style="font-size:10px;color:var(--muted);">Horas</div>
+        </div>
+      </div>
+
+      ${pct_t !== null ? `
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:var(--muted);">Meta tarefas</span>
+          <span style="font-size:11px;color:var(--gold);">${c.tarefas_concluidas_mes}/${c.meta_tarefas} (${pct_t}%)</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct_t}%"></div></div>
+      </div>` : ''}
+
+      ${pct_h !== null ? `
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:var(--muted);">Meta horas</span>
+          <span style="font-size:11px;color:var(--gold);">${c.horas_registradas_mes}h/${c.meta_horas}h (${pct_h}%)</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct_h}%"></div></div>
+      </div>` : ''}
+
+      ${pct_t === null && pct_h === null ? `<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0;">Sem meta definida</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+carregar();
+</script>
+{% endblock %}

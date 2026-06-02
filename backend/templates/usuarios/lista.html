@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Usuários{% endblock %}
+{% block nav_usuarios %}active{% endblock %}
+{% block page_title %}Usuários{% endblock %}
+{% block page_subtitle_text %}Gerencie os acessos ao sistema{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="modalAbrir('modal-novo-usuario')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  Novo Usuário
+</button>
+{% endblock %}
+
+{% block content %}
+
+<div id="grid-usuarios" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;"></div>
+
+<!-- Modal Novo Usuário -->
+<div class="modal-overlay" id="modal-novo-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-user-titulo">Novo Usuário</div>
+      <button class="btn-icon" onclick="modalFechar('modal-novo-usuario')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="user-id">
+      <div class="form-group">
+        <label class="form-label">Nome completo *</label>
+        <input type="text" class="form-control" id="u-nome">
+      </div>
+      <div class="form-group">
+        <label class="form-label">E-mail *</label>
+        <input type="email" class="form-control" id="u-email">
+      </div>
+      <div class="form-group" id="grupo-senha">
+        <label class="form-label">Senha *</label>
+        <input type="password" class="form-control" id="u-senha" placeholder="Mínimo 8 caracteres">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Perfil de acesso</label>
+        <select class="form-control" id="u-perfil">
+          <option value="analyst">Analista</option>
+          <option value="assistant">Assistente</option>
+          <option value="manager">Gestor</option>
+          <option value="admin">Administrador</option>
+          <option value="client">Cliente</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cargo / Função</label>
+        <input type="text" class="form-control" id="u-cargo" placeholder="Ex: Analista Fiscal">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telefone</label>
+        <input type="text" class="form-control" id="u-telefone" placeholder="(00) 00000-0000">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-novo-usuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let editandoUserId = null;
+
+async function carregarUsuarios() {
+  try {
+    const data = await api.get('/api/v1/usuarios/');
+    const lista = data.results || data;
+    renderUsuarios(lista);
+  } catch { toast('Erro ao carregar usuários.', 'error'); }
+}
+
+function renderUsuarios(lista) {
+  const el = document.getElementById('grid-usuarios');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><h3>Nenhum usuário cadastrado</h3></div>';
+    return;
+  }
+
+  el.innerHTML = lista.map(u => `
+    <div class="card" style="position:relative;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div class="avatar" style="width:48px;height:48px;font-size:16px;">${u.iniciais}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.nome}</div>
+          <div style="font-size:11px;color:var(--muted);">${u.email}</div>
+        </div>
+        ${badgePerfil(u.perfil)}
+      </div>
+      ${u.cargo ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">💼 ${u.cargo}</div>` : ''}
+      ${u.telefone ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">📱 ${u.telefone}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick='editarUsuario(${JSON.stringify(u).replace(/'/g,"\\'")})'> ✏️ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="desativarUsuario(${u.id})">
+          ${u.is_active ? '🚫 Desativar' : '✅ Ativar'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editarUsuario(u) {
+  editandoUserId = u.id;
+  document.getElementById('modal-user-titulo').textContent = 'Editar Usuário';
+  document.getElementById('user-id').value   = u.id;
+  document.getElementById('u-nome').value    = u.nome;
+  document.getElementById('u-email').value   = u.email;
+  document.getElementById('u-perfil').value  = u.perfil;
+  document.getElementById('u-cargo').value   = u.cargo || '';
+  document.getElementById('u-telefone').value = u.telefone || '';
+  document.getElementById('u-senha').value   = '';
+  document.getElementById('grupo-senha').querySelector('label').textContent = 'Nova Senha (deixe em branco para manter)';
+  modalAbrir('modal-novo-usuario');
+}
+
+async function salvarUsuario() {
+  const nome  = document.getElementById('u-nome').value.trim();
+  const email = document.getElementById('u-email').value.trim();
+  const senha = document.getElementById('u-senha').value;
+
+  if (!nome || !email) { toast('Nome e e-mail são obrigatórios.', 'error'); return; }
+  if (!editandoUserId && !senha) { toast('Senha é obrigatória para novo usuário.', 'error'); return; }
+
+  const body = {
+    nome, email,
+    perfil:   document.getElementById('u-perfil').value,
+    cargo:    document.getElementById('u-cargo').value,
+    telefone: document.getElementById('u-telefone').value,
+  };
+  if (senha) { body.senha = senha; body.confirmar_senha = senha; }
+
+  try {
+    if (editandoUserId) {
+      await api.patch(`/api/v1/usuarios/${editandoUserId}/`, body);
+      toast('Usuário atualizado!', 'success');
+    } else {
+      await api.post('/api/v1/usuarios/', body);
+      toast('Usuário criado!', 'success');
+    }
+    modalFechar('modal-novo-usuario');
+    editandoUserId = null;
+    carregarUsuarios();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function desativarUsuario(id) {
+  if (!confirm('Confirma a alteração de status deste usuário?')) return;
+  try {
+    await api.patch(`/api/v1/usuarios/${id}/toggle-ativo/`);
+    toast('Status atualizado.', 'success');
+    carregarUsuarios();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+carregarUsuarios();
+</script>
+{% endblock %}

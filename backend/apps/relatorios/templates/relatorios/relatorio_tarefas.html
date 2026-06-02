@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Tarefas — SN Gestor</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm 1.5cm;
+      @bottom-center {
+        content: "SN Gestor — Página " counter(page) " de " counter(pages);
+        font-size: 9px;
+        color: #888;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      color: #2C2C2C;
+      line-height: 1.5;
+    }
+
+    /* ── Cabeçalho ───────────────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 3px solid #C8A45E;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .header-logo h1 {
+      font-size: 22px;
+      color: #1A1A2E;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .header-logo p {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .header-info {
+      text-align: right;
+      font-size: 10px;
+      color: #555;
+    }
+
+    .header-info strong {
+      display: block;
+      font-size: 14px;
+      color: #1A1A2E;
+      margin-bottom: 4px;
+    }
+
+    /* ── Filtros aplicados ───────────────────── */
+    .filtros {
+      background: #F8F5EF;
+      border-left: 4px solid #C8A45E;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 10px;
+      color: #555;
+    }
+
+    .filtros span { margin-right: 20px; }
+    .filtros b { color: #1A1A2E; }
+
+    /* ── Cards de resumo ─────────────────────── */
+    .resumo {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      flex: 1;
+      border: 1px solid #E0D8CB;
+      border-radius: 6px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .card .numero {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1A1A2E;
+    }
+
+    .card .label {
+      font-size: 9px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    .card.destaque-gold .numero { color: #C8A45E; }
+    .card.destaque-red .numero  { color: #C0392B; }
+    .card.destaque-green .numero { color: #27AE60; }
+
+    /* ── Tabela de tarefas ───────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    thead tr {
+      background: #1A1A2E;
+      color: #C8A45E;
+    }
+
+    thead th {
+      padding: 8px 6px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tbody tr { border-bottom: 1px solid #F0EBE1; }
+    tbody tr:nth-child(even) { background: #FAFAF8; }
+
+    tbody td { padding: 7px 6px; vertical-align: top; }
+
+    /* ── Badges de status ────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-done     { background: #D5F5E3; color: #1E8449; }
+    .badge-pending  { background: #EBF5FB; color: #1A5276; }
+    .badge-progress { background: #FEF9E7; color: #7D6608; }
+    .badge-late     { background: #FDEDEC; color: #922B21; }
+
+    /* ── Badge de prioridade ─────────────────── */
+    .prio-urgent { color: #C0392B; font-weight: 700; }
+    .prio-high   { color: #E67E22; font-weight: 600; }
+    .prio-medium { color: #2980B9; }
+    .prio-low    { color: #888; }
+
+    /* ── Rodapé de assinatura ────────────────── */
+    .footer-assinatura {
+      margin-top: 30px;
+      border-top: 1px solid #E0D8CB;
+      padding-top: 12px;
+      font-size: 9px;
+      color: #888;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="header-logo">
+      <h1>SN Gestor</h1>
+      <p>Suzane Neves — Gestão Estratégica em Saúde</p>
+    </div>
+    <div class="header-info">
+      <strong>Relatório de Tarefas</strong>
+      Período: {{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }}<br>
+      {% if empresa_nome %}Empresa: {{ empresa_nome }}<br>{% endif %}
+      {% if colaborador_nome %}Responsável: {{ colaborador_nome }}<br>{% endif %}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros">
+    <span><b>Período:</b> {{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }}</span>
+    {% if empresa_nome %}<span><b>Empresa:</b> {{ empresa_nome }}</span>{% endif %}
+    {% if colaborador_nome %}<span><b>Responsável:</b> {{ colaborador_nome }}</span>{% endif %}
+  </div>
+
+  <!-- Resumo -->
+  <div class="resumo">
+    <div class="card">
+      <div class="numero">{{ total }}</div>
+      <div class="label">Total de Tarefas</div>
+    </div>
+    <div class="card destaque-green">
+      <div class="numero">{{ concluidas }}</div>
+      <div class="label">Concluídas</div>
+    </div>
+    <div class="card destaque-red">
+      <div class="numero">{{ atrasadas }}</div>
+      <div class="label">Atrasadas</div>
+    </div>
+    <div class="card">
+      <div class="numero">{{ total|add:"-"|add:concluidas }}</div>
+      <div class="label">Em Aberto</div>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:35%">Tarefa</th>
+        <th style="width:20%">Empresa</th>
+        <th style="width:15%">Responsável</th>
+        <th style="width:9%">Prazo</th>
+        <th style="width:8%">Prioridade</th>
+        <th style="width:8%">Status</th>
+        <th style="width:5%">Cat.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tarefas %}
+      <tr>
+        <td>{{ t.titulo }}</td>
+        <td>{{ t.empresa.nome }}</td>
+        <td>{{ t.responsavel.nome|default:"—" }}</td>
+        <td>{{ t.prazo|date:"d/m/Y"|default:"—" }}</td>
+        <td>
+          <span class="prio-{{ t.prioridade }}">{{ t.get_prioridade_display }}</span>
+        </td>
+        <td>
+          <span class="badge badge-{{ t.status }}">{{ t.get_status_display }}</span>
+        </td>
+        <td>{{ t.get_categoria_display|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" style="text-align:center; color:#888; padding: 20px;">
+          Nenhuma tarefa encontrada para os filtros selecionados.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Assinatura -->
+  <div class="footer-assinatura">
+    Gerado em {{ gerado_em|date:"d/m/Y \à\s H:i" }} por {{ gerado_por }}
+  </div>
+
+</body>
+</html>

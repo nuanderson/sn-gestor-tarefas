@@ -64,6 +64,13 @@ class Usuario(AbstractUser):
     )
     cargo    = models.CharField('Cargo / Função', max_length=100, blank=True)
     telefone = models.CharField('Telefone', max_length=20, blank=True)
+    empresa_cliente = models.ForeignKey(
+        'companies.Empresa',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='usuarios_clientes',
+        verbose_name='Empresa (portal cliente)',
+    )
 
     # Controle
     criado_em     = models.DateTimeField('Criado em', auto_now_add=True)

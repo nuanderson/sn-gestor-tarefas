@@ -32,7 +32,16 @@ LOCAL_APPS = [
     'apps.accounts',
     'apps.companies',
     'apps.tasks',
+    'apps.dashboard',
+    'apps.relatorios',
+    'apps.postits',
+    'apps.portal',
+    'apps.frontend',
 ]
+
+# ── Login URL ──────────────────────────────────────────────
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -114,6 +123,15 @@ AUTH_USER_MODEL = 'accounts.Usuario'
 
 # ── Chave padrão para modelos ──────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── E-mail ─────────────────────────────────────
+EMAIL_BACKEND   = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST      = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT      = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS   = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL  = config('DEFAULT_FROM_EMAIL', default='SN Gestor <noreply@sngestor.com.br>')
 
 # ── Django REST Framework ──────────────────────
 REST_FRAMEWORK = {

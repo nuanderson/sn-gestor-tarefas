@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Produtividade — SN Gestor</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm 1.5cm;
+      @bottom-center {
+        content: "SN Gestor — Página " counter(page) " de " counter(pages);
+        font-size: 9px;
+        color: #888;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      color: #2C2C2C;
+      line-height: 1.5;
+    }
+
+    /* ── Cabeçalho ───────────────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 3px solid #C8A45E;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+
+    .header-logo h1 {
+      font-size: 22px;
+      color: #1A1A2E;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .header-logo p {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .header-info {
+      text-align: right;
+      font-size: 10px;
+      color: #555;
+    }
+
+    .header-info strong {
+      display: block;
+      font-size: 14px;
+      color: #1A1A2E;
+      margin-bottom: 4px;
+    }
+
+    /* ── Bloco por colaborador ───────────────── */
+    .colaborador-bloco {
+      margin-bottom: 28px;
+      page-break-inside: avoid;
+    }
+
+    .colaborador-header {
+      background: #1A1A2E;
+      color: #ffffff;
+      padding: 10px 14px;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .colaborador-nome {
+      font-size: 13px;
+      font-weight: 700;
+      color: #C8A45E;
+    }
+
+    .colaborador-perfil {
+      font-size: 9px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Mini cards de resumo do colaborador ─── */
+    .colab-resumo {
+      display: flex;
+      gap: 0;
+      border: 1px solid #E0D8CB;
+      border-top: none;
+    }
+
+    .colab-card {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border-right: 1px solid #E0D8CB;
+    }
+
+    .colab-card:last-child { border-right: none; }
+
+    .colab-card .num {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1A1A2E;
+    }
+
+    .colab-card .lbl {
+      font-size: 8px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .num-gold  { color: #C8A45E !important; }
+    .num-green { color: #27AE60 !important; }
+
+    /* ── Tabela de tarefas do colaborador ────── */
+    .colab-tarefas {
+      border: 1px solid #E0D8CB;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+    }
+
+    .colab-tarefas table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    .colab-tarefas thead tr {
+      background: #F8F5EF;
+    }
+
+    .colab-tarefas thead th {
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 9px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid #E0D8CB;
+    }
+
+    .colab-tarefas tbody td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #F5F0E8;
+      vertical-align: top;
+    }
+
+    .colab-tarefas tbody tr:last-child td { border-bottom: none; }
+
+    .vazio {
+      padding: 12px;
+      text-align: center;
+      color: #aaa;
+      font-size: 10px;
+      font-style: italic;
+      border: 1px solid #E0D8CB;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+    }
+
+    /* ── Rodapé de assinatura ────────────────── */
+    .footer-assinatura {
+      margin-top: 30px;
+      border-top: 1px solid #E0D8CB;
+      padding-top: 10px;
+      font-size: 9px;
+      color: #888;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="header-logo">
+      <h1>SN Gestor</h1>
+      <p>Suzane Neves — Gestão Estratégica em Saúde</p>
+    </div>
+    <div class="header-info">
+      <strong>Relatório de Produtividade</strong>
+      {{ mes_nome }}/{{ ano }}
+    </div>
+  </div>
+
+  <!-- Um bloco por colaborador -->
+  {% for dados in dados_colaboradores %}
+  <div class="colaborador-bloco">
+
+    <div class="colaborador-header">
+      <div>
+        <div class="colaborador-nome">{{ dados.colaborador.nome }}</div>
+        <div class="colaborador-perfil">{{ dados.colaborador.get_perfil_display }}</div>
+      </div>
+      <div style="font-size:10px; color:#aaa;">{{ mes_nome }}/{{ ano }}</div>
+    </div>
+
+    <div class="colab-resumo">
+      <div class="colab-card">
+        <div class="num num-green">{{ dados.tarefas_concluidas }}</div>
+        <div class="lbl">Tarefas Concluídas</div>
+      </div>
+      <div class="colab-card">
+        <div class="num num-gold">{{ dados.horas_trabalhadas }}h</div>
+        <div class="lbl">Horas Registradas</div>
+      </div>
+      <div class="colab-card">
+        <div class="num">{{ dados.minutos_trabalhados }}</div>
+        <div class="lbl">Minutos Totais</div>
+      </div>
+    </div>
+
+    {% if dados.tarefas %}
+    <div class="colab-tarefas">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:45%">Tarefa</th>
+            <th style="width:25%">Empresa</th>
+            <th style="width:15%">Concluída em</th>
+            <th style="width:15%">Categoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in dados.tarefas %}
+          <tr>
+            <td>{{ t.titulo }}</td>
+            <td>{{ t.empresa.nome }}</td>
+            <td>{{ t.concluida_em|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td>{{ t.get_categoria_display|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="vazio">Nenhuma tarefa concluída neste período.</div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+
+  <!-- Assinatura -->
+  <div class="footer-assinatura">
+    Gerado em {{ gerado_em|date:"d/m/Y \à\s H:i" }} por {{ gerado_por }}
+  </div>
+
+</body>
+</html>

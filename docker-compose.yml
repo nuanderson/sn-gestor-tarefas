@@ -44,6 +44,27 @@ services:
     networks:
       - sn_network
 
+  # ── Agendador de Tarefas (cron) ───────────
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sn_scheduler
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo '0 8 * * * cd /app && python manage.py enviar_alertas_prazo >> /var/log/cron.log 2>&1' > /etc/crontabs/root &&
+        echo '0 8 * * 1 cd /app && python manage.py enviar_relatorio_semanal >> /var/log/cron.log 2>&1' >> /etc/crontabs/root &&
+        crond -f -l 2
+      "
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sn_network
+
   # ── Proxy Reverso Nginx ────────────────────
   nginx:
     image: nginx:1.25-alpine

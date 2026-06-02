@@ -10,10 +10,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Dependências do sistema operacional
+# gcc + libpq-dev: compilação e PostgreSQL
+# libgobject, pango, cairo, fonts: necessários para o WeasyPrint gerar PDF
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     netcat-openbsd \
+    libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-xlib-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    fonts-liberation \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala dependências Python

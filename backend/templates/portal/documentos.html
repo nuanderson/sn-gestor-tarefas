@@ -1,0 +1,82 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block title %}Documentos{% endblock %}
+{% block nav_docs %}active{% endblock %}
+{% block page_title %}Documentos{% endblock %}
+{% block page_subtitle %}Contratos e relatórios da sua empresa{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;gap:8px;margin-bottom:20px;">
+  <button class="btn btn-sm {% block f_todos %}btn-primary{% endblock %}" onclick="filtrar('')">Todos</button>
+  <button class="btn btn-sm btn-ghost" id="btn-contrato" onclick="filtrar('contrato')">Contratos</button>
+  <button class="btn btn-sm btn-ghost" id="btn-relatorio" onclick="filtrar('relatorio')">Relatórios</button>
+  <button class="btn btn-sm btn-ghost" id="btn-outro" onclick="filtrar('outro')">Outros</button>
+</div>
+
+<div id="lista-docs">
+  <div class="skeleton" style="height:56px;border-radius:8px;margin-bottom:10px;"></div>
+  <div class="skeleton" style="height:56px;border-radius:8px;margin-bottom:10px;"></div>
+  <div class="skeleton" style="height:56px;border-radius:8px;"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let tipoAtivo = '';
+
+async function filtrar(tipo) {
+  tipoAtivo = tipo;
+  ['contrato','relatorio','outro',''].forEach(t => {
+    const id = t === '' ? 'btn-todos' : `btn-${t}`;
+    const btn = document.getElementById(id);
+    if (btn) btn.className = `btn btn-sm ${t === tipo ? 'btn-primary' : 'btn-ghost'}`;
+  });
+  await carregar();
+}
+
+async function carregar() {
+  const el = document.getElementById('lista-docs');
+  el.innerHTML = '<div class="skeleton" style="height:56px;border-radius:8px;margin-bottom:10px;"></div>'.repeat(3);
+  try {
+    const params = tipoAtivo ? { tipo: tipoAtivo } : {};
+    const docs = await api.get('/api/v1/portal/documentos/', params);
+    renderDocs(docs);
+  } catch(e) {
+    toast('Erro ao carregar documentos: ' + e.message, 'error');
+  }
+}
+
+function renderDocs(lista) {
+  const el = document.getElementById('lista-docs');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state"><p>Nenhum documento encontrado.</p></div>';
+    return;
+  }
+  const icone = { contrato:'📋', relatorio:'📊', outro:'📎' };
+  const cor   = { contrato:'var(--gold)', relatorio:'var(--green)', outro:'var(--muted)' };
+  el.innerHTML = lista.map(doc => `
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
+      <span style="font-size:22px;">${icone[doc.tipo] || '📎'}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;color:var(--text);">${doc.titulo}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+          <span style="color:${cor[doc.tipo]};margin-right:8px;">${doc.tipo_display}</span>
+          Adicionado em ${formatarData(doc.criado_em)}
+          ${doc.criado_por_nome ? ` · por ${doc.criado_por_nome}` : ''}
+        </div>
+      </div>
+      <a href="${doc.url}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Abrir
+      </a>
+    </div>
+  `).join('');
+}
+
+// Atribui id ao botão "Todos" renderizado via template
+document.querySelector('[onclick="filtrar(\'\')"]').id = 'btn-todos';
+carregar();
+</script>
+{% endblock %}

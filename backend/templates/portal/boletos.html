@@ -1,0 +1,155 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block title %}Financeiro{% endblock %}
+{% block nav_boletos %}active{% endblock %}
+{% block page_title %}Financeiro{% endblock %}
+{% block page_subtitle %}Histórico e solicitação de boletos{% endblock %}
+
+{% block content %}
+
+<!-- Métricas rápidas -->
+<div class="metric-grid" id="metricas" style="margin-bottom:24px;">
+  <div class="metric-card green skeleton" style="height:90px;"></div>
+  <div class="metric-card gold skeleton" style="height:90px;"></div>
+  <div class="metric-card red skeleton" style="height:90px;"></div>
+</div>
+
+<!-- Lista de recorrência -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📅 Recorrência Mensal</div>
+    <span id="label-mensalidade" style="font-size:12px;color:var(--muted);"></span>
+  </div>
+  <div id="lista-recorrencia">
+    <div class="skeleton" style="height:52px;border-radius:6px;margin-bottom:8px;"></div>
+    <div class="skeleton" style="height:52px;border-radius:6px;margin-bottom:8px;"></div>
+    <div class="skeleton" style="height:52px;border-radius:6px;"></div>
+  </div>
+</div>
+
+<!-- Modal confirmação de boleto -->
+<div id="modal-boleto" class="modal" style="display:none;">
+  <div class="modal-backdrop" onclick="modalFechar('modal-boleto')"></div>
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title">Solicitar Boleto</div>
+      <button class="btn-icon" onclick="modalFechar('modal-boleto')">✕</button>
+    </div>
+    <div style="padding:8px 0 20px;">
+      <p style="font-size:13px;color:var(--text);margin-bottom:12px;">
+        Deseja solicitar o boleto para <strong id="modal-ref"></strong>?
+      </p>
+      <div style="background:var(--bg);border-radius:8px;padding:12px;display:flex;justify-content:space-between;">
+        <span style="font-size:12px;color:var(--muted);">Valor</span>
+        <span style="font-size:14px;font-weight:700;color:var(--gold);" id="modal-valor"></span>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;">Nossa equipe entrará em contato com o boleto em breve.</p>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-boleto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarSolicitacao()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pagamentoSelecionado = null;
+
+const COR = { paid:'var(--green)', pending:'var(--gold)', late:'var(--red)' };
+const TXT = { paid:'Pago', pending:'Pendente', late:'Atrasado' };
+const COR_SOL = { pendente:'var(--gold)', em_analise:'#3b82f6', enviado:'var(--green)', cancelado:'var(--muted)' };
+const TXT_SOL = { pendente:'Boleto solicitado', em_analise:'Em análise', enviado:'Boleto enviado', cancelado:'Cancelado' };
+
+async function carregar() {
+  try {
+    const d = await api.get('/api/v1/portal/recorrencia/');
+    renderMetricas(d.pagamentos);
+    renderLista(d.pagamentos);
+    document.getElementById('label-mensalidade').textContent =
+      `Mensalidade: R$ ${parseFloat(d.empresa.mensalidade).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  } catch(e) {
+    toast('Erro ao carregar: ' + e.message, 'error');
+  }
+}
+
+function renderMetricas(pags) {
+  const pagos    = pags.filter(p => p.status === 'paid').length;
+  const pend     = pags.filter(p => p.status === 'pending').length;
+  const atras    = pags.filter(p => p.status === 'late').length;
+  const totalPago = pags.filter(p => p.status === 'paid').reduce((s,p) => s + parseFloat(p.valor), 0);
+
+  document.getElementById('metricas').innerHTML = `
+    <div class="metric-card green">
+      <div class="metric-value">${pagos}</div>
+      <div class="metric-label">Meses pagos · R$ ${totalPago.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+    </div>
+    <div class="metric-card gold">
+      <div class="metric-value">${pend}</div>
+      <div class="metric-label">Pendentes</div>
+      <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    </div>
+    <div class="metric-card ${atras > 0 ? 'red' : 'blue'}">
+      <div class="metric-value">${atras}</div>
+      <div class="metric-label">Atrasados</div>
+      <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+    </div>
+  `;
+}
+
+function renderLista(pags) {
+  const el = document.getElementById('lista-recorrencia');
+  if (!pags.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:24px 0"><p>Nenhum lançamento encontrado.</p></div>';
+    return;
+  }
+
+  el.innerHTML = pags.map(p => {
+    const isPago = p.status === 'paid';
+    const botao = isPago ? '' :
+      p.boleto_solicitado && ['pendente','em_analise'].includes(p.boleto_solicitado)
+        ? `<span style="font-size:11px;color:${COR_SOL[p.boleto_solicitado]};font-weight:600;white-space:nowrap;">${TXT_SOL[p.boleto_solicitado]}</span>`
+        : `<button class="btn btn-ghost btn-sm" onclick="abrirModal(${p.id}, '${p.referencia}', '${p.valor}')" style="white-space:nowrap;">Solicitar Boleto</button>`;
+
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${p.referencia}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">Venc. ${formatarData(p.data)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-right:12px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">R$ ${parseFloat(p.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        </div>
+        <span style="color:${COR[p.status]};font-size:11px;font-weight:700;min-width:60px;text-align:center;">${TXT[p.status]}</span>
+        <div style="min-width:130px;text-align:right;">${botao}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function abrirModal(id, ref, valor) {
+  pagamentoSelecionado = id;
+  document.getElementById('modal-ref').textContent = ref;
+  document.getElementById('modal-valor').textContent =
+    'R$ ' + parseFloat(valor).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  modalAbrir('modal-boleto');
+}
+
+async function confirmarSolicitacao() {
+  if (!pagamentoSelecionado) return;
+  try {
+    await api.post('/api/v1/portal/recorrencia/', { pagamento_id: pagamentoSelecionado });
+    modalFechar('modal-boleto');
+    toast('Solicitação enviada! Entraremos em contato em breve.', 'success');
+    carregar();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+carregar();
+</script>
+{% endblock %}

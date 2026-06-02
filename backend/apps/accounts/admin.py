@@ -18,6 +18,8 @@ class UsuarioAdmin(UserAdmin):
     fieldsets = (
         ('Identificação', {'fields': ('email', 'password')}),
         ('Dados pessoais', {'fields': ('nome', 'cargo', 'telefone')}),
+        ('Portal do Cliente', {'fields': ('empresa_cliente',),
+                               'description': 'Preencher apenas para usuários com perfil Cliente.'}),
         ('Acesso',         {'fields': ('perfil', 'is_active', 'is_staff', 'is_superuser')}),
         ('Permissões',     {'fields': ('groups', 'user_permissions')}),
         ('Datas',          {'fields': ('last_login', 'criado_em', 'atualizado_em'),

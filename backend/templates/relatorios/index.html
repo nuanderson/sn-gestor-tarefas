@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Relatórios PDF{% endblock %}
+{% block nav_relatorios %}active{% endblock %}
+{% block page_title %}Relatórios PDF{% endblock %}
+{% block page_subtitle_text %}Gere e baixe relatórios em PDF{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+  <!-- Relatório de Tarefas -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📋 Relatório de Tarefas</div>
+        <div class="card-subtitle">Por período, empresa ou responsável</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Período de início</label>
+      <input type="date" class="form-control" id="rt-inicio">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Período de fim</label>
+      <input type="date" class="form-control" id="rt-fim">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Empresa (opcional)</label>
+      <select class="form-control" id="rt-empresa"><option value="">Todas as empresas</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Responsável (opcional)</label>
+      <select class="form-control" id="rt-colaborador"><option value="">Todos</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status (opcional)</label>
+      <select class="form-control" id="rt-status">
+        <option value="">Todos</option>
+        <option value="done">Concluídas</option>
+        <option value="pending">Pendentes</option>
+        <option value="late">Atrasadas</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="gerarRelatorioTarefas()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Gerar e Baixar PDF
+    </button>
+  </div>
+
+  <!-- Relatório de Produtividade -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📊 Relatório de Produtividade</div>
+        <div class="card-subtitle">Por colaborador no mês</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mês</label>
+      <select class="form-control" id="rp-mes">
+        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+        <option value="3">Março</option><option value="4">Abril</option>
+        <option value="5">Maio</option><option value="6">Junho</option>
+        <option value="7">Julho</option><option value="8">Agosto</option>
+        <option value="9">Setembro</option><option value="10">Outubro</option>
+        <option value="11">Novembro</option><option value="12">Dezembro</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ano</label>
+      <input type="number" class="form-control" id="rp-ano" value="{{ now.year }}" min="2024" max="2030">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Colaborador (opcional)</label>
+      <select class="form-control" id="rp-colaborador"><option value="">Todos os colaboradores</option></select>
+    </div>
+    <div style="height:80px;"></div><!-- espaçador -->
+    <button class="btn btn-primary" style="width:100%;" onclick="gerarRelatorioColaborador()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Gerar e Baixar PDF
+    </button>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Preenche data padrão (primeiro e último dia do mês atual)
+const hoje = new Date();
+const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+const ultimoDia   = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).toISOString().split('T')[0];
+document.getElementById('rt-inicio').value = primeiroDia;
+document.getElementById('rt-fim').value    = ultimoDia;
+document.getElementById('rp-mes').value    = hoje.getMonth() + 1;
+
+async function carregarSelects() {
+  try {
+    const [emps, users] = await Promise.all([
+      api.get('/api/v1/empresas/'),
+      api.get('/api/v1/usuarios/'),
+    ]);
+    const listaEmps  = emps.results || emps;
+    const listaUsers = users.results || users;
+
+    listaEmps.forEach(e => {
+      document.getElementById('rt-empresa').innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+    });
+    listaUsers.forEach(u => {
+      document.getElementById('rt-colaborador').innerHTML  += `<option value="${u.id}">${u.nome}</option>`;
+      document.getElementById('rp-colaborador').innerHTML  += `<option value="${u.id}">${u.nome}</option>`;
+    });
+  } catch {}
+}
+
+function gerarRelatorioTarefas() {
+  const params = new URLSearchParams();
+  const ini  = document.getElementById('rt-inicio').value;
+  const fim  = document.getElementById('rt-fim').value;
+  const emp  = document.getElementById('rt-empresa').value;
+  const col  = document.getElementById('rt-colaborador').value;
+  const sta  = document.getElementById('rt-status').value;
+
+  if (!ini || !fim) { toast('Informe o período.', 'error'); return; }
+  params.set('data_inicio', ini);
+  params.set('data_fim', fim);
+  if (emp) params.set('empresa_id', emp);
+  if (col) params.set('colaborador_id', col);
+  if (sta) params.set('status', sta);
+
+  toast('Gerando PDF...', 'default');
+  window.open(`/api/v1/relatorios/tarefas/pdf/?${params}`, '_blank');
+}
+
+function gerarRelatorioColaborador() {
+  const params = new URLSearchParams();
+  const mes = document.getElementById('rp-mes').value;
+  const ano = document.getElementById('rp-ano').value;
+  const col = document.getElementById('rp-colaborador').value;
+
+  params.set('mes', mes);
+  params.set('ano', ano);
+  if (col) params.set('colaborador_id', col);
+
+  toast('Gerando PDF...', 'default');
+  window.open(`/api/v1/relatorios/colaborador/pdf/?${params}`, '_blank');
+}
+
+carregarSelects();
+</script>
+{% endblock %}

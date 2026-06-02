@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Empresa{% endblock %}
+{% block nav_empresas %}active{% endblock %}
+{% block page_title %}Empresa{% endblock %}
+{% block page_subtitle_text %}<a href="/empresas/" style="color:var(--muted);font-size:12px;">← Voltar para Empresas</a>{% endblock %}
+
+{% block header_actions %}
+{% if user.is_gestor_ou_acima %}
+<button class="btn btn-ghost btn-sm" onclick="modalEditar()">Editar</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+
+  <!-- Dados da empresa -->
+  <div class="card" id="card-dados">
+    <div class="skeleton" style="height:200px;border-radius:6px;"></div>
+  </div>
+
+  <!-- Resumo financeiro -->
+  <div class="card" id="card-financeiro">
+    <div class="skeleton" style="height:200px;border-radius:6px;"></div>
+  </div>
+
+</div>
+
+<!-- Tarefas da empresa -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div class="card-title">📋 Tarefas</div>
+    <a href="/tarefas/" class="btn btn-ghost btn-sm">Ver todas</a>
+  </div>
+  <div id="lista-tarefas"><div class="skeleton" style="height:100px;border-radius:6px;"></div></div>
+</div>
+
+<!-- Histórico de pagamentos -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div class="card-title">💰 Pagamentos</div>
+    {% if user.is_gestor_ou_acima %}
+    <button class="btn btn-primary btn-sm" onclick="modalNovoPagamento()">+ Novo</button>
+    {% endif %}
+  </div>
+  <div id="lista-pagamentos"><div class="skeleton" style="height:80px;border-radius:6px;"></div></div>
+</div>
+
+<!-- Modal Editar Empresa -->
+<div id="modal-editar" class="modal" style="display:none;">
+  <div class="modal-backdrop" onclick="modalFechar('modal-editar')"></div>
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Editar Empresa</div>
+      <button class="btn-icon" onclick="modalFechar('modal-editar')">✕</button>
+    </div>
+    <form id="form-editar" onsubmit="salvarEmpresa(event)">
+      <div class="form-group">
+        <label class="form-label">Razão Social</label>
+        <input id="edit-nome" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">CNPJ</label>
+        <input id="edit-cnpj" class="form-control" required>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Mensalidade (R$)</label>
+          <input id="edit-mensalidade" type="number" step="0.01" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="edit-status" class="form-control">
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea id="edit-obs" class="form-control" rows="3"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-ghost" onclick="modalFechar('modal-editar')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Novo Pagamento -->
+<div id="modal-pagamento" class="modal" style="display:none;">
+  <div class="modal-backdrop" onclick="modalFechar('modal-pagamento')"></div>
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Novo Pagamento</div>
+      <button class="btn-icon" onclick="modalFechar('modal-pagamento')">✕</button>
+    </div>
+    <form id="form-pagamento" onsubmit="salvarPagamento(event)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input id="pag-data" type="date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor (R$)</label>
+          <input id="pag-valor" type="number" step="0.01" class="form-control" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select id="pag-status" class="form-control">
+          <option value="paid">Pago</option>
+          <option value="pending">Pendente</option>
+          <option value="late">Atrasado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Referência</label>
+        <input id="pag-ref" class="form-control" placeholder="Ex: Maio/2026">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-ghost" onclick="modalFechar('modal-pagamento')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const EMPRESA_ID = {{ empresa_id }};
+let dadosEmpresa = null;
+
+async function carregar() {
+  try {
+    const [empresa, tarefas] = await Promise.all([
+      api.get(`/api/v1/empresas/${EMPRESA_ID}/`),
+      api.get('/api/v1/tarefas/', { empresa: EMPRESA_ID, page_size: 10 }),
+    ]);
+    dadosEmpresa = empresa;
+    document.querySelector('.card-title, [block]');
+    renderDados(empresa);
+    renderFinanceiro(empresa);
+    renderTarefas(tarefas.results || tarefas);
+    carregarPagamentos();
+  } catch(e) {
+    toast('Erro ao carregar empresa: ' + e.message, 'error');
+  }
+}
+
+function renderDados(e) {
+  const statusCor = e.status === 'active' ? 'var(--green)' : 'var(--muted)';
+  const statusTxt = e.status === 'active' ? 'Ativo' : 'Inativo';
+  document.getElementById('card-dados').innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="card-title" style="font-size:16px;">${e.nome}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">CNPJ: ${e.cnpj}</div>
+      </div>
+      <span style="background:${statusCor === 'var(--green)' ? 'rgba(34,197,94,.15)' : 'rgba(156,163,175,.15)'};color:${statusCor};font-size:11px;padding:3px 10px;border-radius:20px;">${statusTxt}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Mensalidade</div>
+        <div style="font-size:15px;font-weight:700;color:var(--gold);">R$ ${parseFloat(e.mensalidade).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Cliente desde</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);">${formatarData(e.data_entrada)}</div>
+      </div>
+      ${e.responsavel_nome ? `
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Responsável</div>
+        <div style="font-size:13px;color:var(--text);">${e.responsavel_nome}</div>
+      </div>` : ''}
+    </div>
+    ${e.observacoes ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">${e.observacoes}</div>` : ''}
+  `;
+}
+
+function renderFinanceiro(e) {
+  document.getElementById('card-financeiro').innerHTML = `
+    <div class="card-header">
+      <div class="card-title">💰 Resumo Financeiro</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+      <div style="text-align:center;padding:12px;background:var(--bg);border-radius:8px;">
+        <div style="font-size:20px;font-weight:700;color:var(--green);">R$ ${parseFloat(e.total_recebido||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Total recebido</div>
+      </div>
+      <div style="text-align:center;padding:12px;background:var(--bg);border-radius:8px;">
+        <div style="font-size:20px;font-weight:700;color:${e.pagamentos_pendentes > 0 ? 'var(--red)' : 'var(--muted)'};">${e.pagamentos_pendentes || 0}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Pagamentos pendentes</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTarefas(lista) {
+  const el = document.getElementById('lista-tarefas');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0"><p>Nenhuma tarefa para esta empresa.</p></div>';
+    return;
+  }
+  el.innerHTML = lista.slice(0,8).map(t => `
+    <a href="/tarefas/${t.id}/" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);text-decoration:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.titulo}</div>
+        <div style="font-size:11px;color:var(--muted);">${t.responsavel_nome || 'Sem responsável'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        ${t.prazo ? `<div style="font-size:11px;color:var(--gold);">${formatarData(t.prazo)}</div>` : ''}
+        ${badgeStatus(t.status)}
+      </div>
+    </a>
+  `).join('');
+}
+
+async function carregarPagamentos() {
+  try {
+    const pags = await api.get(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/`);
+    renderPagamentos(pags);
+  } catch(e) {}
+}
+
+function renderPagamentos(lista) {
+  const el = document.getElementById('lista-pagamentos');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0"><p>Nenhum pagamento registrado.</p></div>';
+    return;
+  }
+  const corStatus = { paid: 'var(--green)', pending: 'var(--gold)', late: 'var(--red)' };
+  const txtStatus = { paid: 'Pago', pending: 'Pendente', late: 'Atrasado' };
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:500;">Referência</th>
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:500;">Data</th>
+        <th style="text-align:right;padding:6px 8px;color:var(--muted);font-weight:500;">Valor</th>
+        <th style="text-align:center;padding:6px 8px;color:var(--muted);font-weight:500;">Status</th>
+      </tr></thead>
+      <tbody>
+        ${lista.map(p => `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;">${p.referencia || '—'}</td>
+            <td style="padding:8px;color:var(--muted);">${formatarData(p.data)}</td>
+            <td style="padding:8px;text-align:right;font-weight:600;">R$ ${parseFloat(p.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="padding:8px;text-align:center;"><span style="color:${corStatus[p.status]};font-size:11px;">${txtStatus[p.status]}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function modalEditar() {
+  if (!dadosEmpresa) return;
+  document.getElementById('edit-nome').value       = dadosEmpresa.nome;
+  document.getElementById('edit-cnpj').value       = dadosEmpresa.cnpj;
+  document.getElementById('edit-mensalidade').value = dadosEmpresa.mensalidade;
+  document.getElementById('edit-status').value     = dadosEmpresa.status;
+  document.getElementById('edit-obs').value        = dadosEmpresa.observacoes || '';
+  modalAbrir('modal-editar');
+}
+
+async function salvarEmpresa(e) {
+  e.preventDefault();
+  try {
+    await api.patch(`/api/v1/empresas/${EMPRESA_ID}/`, {
+      nome:        document.getElementById('edit-nome').value,
+      cnpj:        document.getElementById('edit-cnpj').value,
+      mensalidade: document.getElementById('edit-mensalidade').value,
+      status:      document.getElementById('edit-status').value,
+      observacoes: document.getElementById('edit-obs').value,
+    });
+    modalFechar('modal-editar');
+    toast('Empresa atualizada!', 'success');
+    carregar();
+  } catch(err) {
+    toast('Erro ao salvar: ' + err.message, 'error');
+  }
+}
+
+function modalNovoPagamento() {
+  document.getElementById('pag-data').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('pag-valor').value  = dadosEmpresa?.mensalidade || '';
+  document.getElementById('pag-status').value = 'paid';
+  document.getElementById('pag-ref').value    = '';
+  modalAbrir('modal-pagamento');
+}
+
+async function salvarPagamento(e) {
+  e.preventDefault();
+  try {
+    await api.post(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/`, {
+      data:       document.getElementById('pag-data').value,
+      valor:      document.getElementById('pag-valor').value,
+      status:     document.getElementById('pag-status').value,
+      referencia: document.getElementById('pag-ref').value,
+    });
+    modalFechar('modal-pagamento');
+    toast('Pagamento registrado!', 'success');
+    carregarPagamentos();
+    carregar();
+  } catch(err) {
+    toast('Erro ao salvar: ' + err.message, 'error');
+  }
+}
+
+carregar();
+</script>
+{% endblock %}

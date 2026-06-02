@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Meu Perfil{% endblock %}
+{% block page_title %}Meu Perfil{% endblock %}
+{% block page_subtitle_text %}Gerencie suas informações pessoais{% endblock %}
+
+{% block content %}
+
+<div style="max-width:640px;margin:0 auto;">
+
+  <!-- Dados pessoais -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <div class="card-title">👤 Dados Pessoais</div>
+      <button class="btn btn-ghost btn-sm" id="btn-editar" onclick="toggleEditar()">Editar</button>
+    </div>
+
+    <!-- Visualização -->
+    <div id="view-perfil">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+        <div class="avatar" id="avatar-iniciais" style="width:56px;height:56px;font-size:20px;">{{user.iniciais}}</div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);" id="view-nome">{{user.nome}}</div>
+          <div style="font-size:12px;color:var(--muted);" id="view-email">{{user.email}}</div>
+          <div style="font-size:11px;color:var(--gold);margin-top:2px;" id="view-perfil-txt">{{user.get_perfil_display}}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Cargo</div>
+          <div style="font-size:13px;color:var(--text);" id="view-cargo">{{user.cargo|default:"—"}}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Telefone</div>
+          <div style="font-size:13px;color:var(--text);" id="view-telefone">{{user.telefone|default:"—"}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulário de edição -->
+    <form id="form-perfil" style="display:none;" onsubmit="salvarPerfil(event)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Nome completo</label>
+          <input id="edit-nome" class="form-control" value="{{user.nome}}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cargo</label>
+          <input id="edit-cargo" class="form-control" value="{{user.cargo}}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input id="edit-telefone" class="form-control" value="{{user.telefone}}">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button type="button" class="btn btn-ghost" onclick="toggleEditar()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Alterar senha -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🔒 Alterar Senha</div>
+    </div>
+    <form id="form-senha" onsubmit="salvarSenha(event)">
+      <div class="form-group">
+        <label class="form-label">Senha atual</label>
+        <input id="senha-atual" type="password" class="form-control" required autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nova senha</label>
+        <input id="senha-nova" type="password" class="form-control" required autocomplete="new-password" minlength="8">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar nova senha</label>
+        <input id="senha-confirm" type="password" class="form-control" required autocomplete="new-password">
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+        <button type="submit" class="btn btn-primary">Alterar Senha</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleEditar() {
+  const view = document.getElementById('view-perfil');
+  const form = document.getElementById('form-perfil');
+  const btn  = document.getElementById('btn-editar');
+  const editing = form.style.display === 'none';
+  form.style.display = editing ? 'block' : 'none';
+  view.style.display = editing ? 'none'  : 'block';
+  btn.textContent    = editing ? 'Cancelar' : 'Editar';
+}
+
+async function salvarPerfil(e) {
+  e.preventDefault();
+  try {
+    const data = await api.patch('/api/v1/auth/me/', {
+      nome:     document.getElementById('edit-nome').value,
+      cargo:    document.getElementById('edit-cargo').value,
+      telefone: document.getElementById('edit-telefone').value,
+    });
+    document.getElementById('view-nome').textContent     = data.nome;
+    document.getElementById('view-cargo').textContent    = data.cargo    || '—';
+    document.getElementById('view-telefone').textContent = data.telefone || '—';
+    document.getElementById('avatar-iniciais').textContent = data.iniciais || data.nome.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+    toggleEditar();
+    toast('Perfil atualizado!', 'success');
+  } catch(err) {
+    toast('Erro ao salvar: ' + err.message, 'error');
+  }
+}
+
+async function salvarSenha(e) {
+  e.preventDefault();
+  const nova    = document.getElementById('senha-nova').value;
+  const confirm = document.getElementById('senha-confirm').value;
+  if (nova !== confirm) {
+    toast('As senhas não coincidem.', 'error');
+    return;
+  }
+  try {
+    await api.post('/api/v1/auth/senha/', {
+      senha_atual:    document.getElementById('senha-atual').value,
+      nova_senha:     nova,
+      confirmar_senha: confirm,
+    });
+    document.getElementById('form-senha').reset();
+    toast('Senha alterada com sucesso!', 'success');
+  } catch(err) {
+    toast('Erro: ' + err.message, 'error');
+  }
+}
+</script>
+{% endblock %}
