@@ -1,0 +1,135 @@
+"""
+Configurações base do SN Gestor.
+Compartilhadas entre desenvolvimento e produção.
+"""
+from pathlib import Path
+from decouple import config
+
+# ── Diretório raiz do projeto ──────────────────
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# ── Segurança ──────────────────────────────────
+SECRET_KEY = config('SECRET_KEY')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost').split(',')
+
+# ── Aplicações instaladas ──────────────────────
+DJANGO_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+
+THIRD_PARTY_APPS = [
+    'rest_framework',
+    'corsheaders',
+    'django_filters',
+]
+
+LOCAL_APPS = [
+    'apps.accounts',
+    'apps.companies',
+    'apps.tasks',
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# ── Middlewares ────────────────────────────────
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+# ── URLs ───────────────────────────────────────
+ROOT_URLCONF = 'config.urls'
+
+# ── Templates ─────────────────────────────────
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+# ── Banco de Dados ─────────────────────────────
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB'),
+        'USER': config('POSTGRES_USER'),
+        'PASSWORD': config('POSTGRES_PASSWORD'),
+        'HOST': config('POSTGRES_HOST', default='db'),
+        'PORT': config('POSTGRES_PORT', default='5432'),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
+    }
+}
+
+# ── Validação de senhas ────────────────────────
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+# ── Idioma e Fuso Horário ──────────────────────
+LANGUAGE_CODE = 'pt-br'
+TIME_ZONE = config('TIME_ZONE', default='America/Sao_Paulo')
+USE_I18N = True
+USE_TZ = True
+
+# ── Arquivos estáticos ─────────────────────────
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# ── Arquivos de mídia (uploads) ────────────────
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── Modelo de usuário customizado ─────────────
+AUTH_USER_MODEL = 'accounts.Usuario'
+
+# ── Chave padrão para modelos ──────────────────
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Django REST Framework ──────────────────────
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DATETIME_FORMAT': '%d/%m/%Y %H:%M',
+    'DATE_FORMAT': '%d/%m/%Y',
+}
