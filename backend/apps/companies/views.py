@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -20,7 +21,15 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         return EmpresaSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs   = super().get_queryset()
+        user = self.request.user
+
+        # Analistas e assistentes veem só suas empresas
+        if not user.is_gestor_ou_acima:
+            qs = qs.filter(
+                Q(responsavel=user) | Q(colaboradores=user)
+            ).distinct()
+
         status_param = self.request.query_params.get('status')
         busca        = self.request.query_params.get('busca')
         if status_param:

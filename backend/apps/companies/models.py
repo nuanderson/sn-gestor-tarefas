@@ -23,6 +23,12 @@ class Empresa(models.Model):
         verbose_name='Responsável Interno',
     )
     status        = models.CharField('Status', max_length=10, choices=STATUS_CHOICES, default='active')
+    colaboradores = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='empresas_colaborador',
+        verbose_name='Colaboradores',
+    )
     observacoes   = models.TextField('Observações', blank=True)
     criado_em     = models.DateTimeField('Criado em', auto_now_add=True)
     atualizado_em = models.DateTimeField('Atualizado em', auto_now=True)

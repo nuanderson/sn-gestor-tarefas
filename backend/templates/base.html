@@ -218,20 +218,6 @@
 <!-- ── Toast container ──────────────────────────────── -->
 <div id="toast-container"></div>
 
-<!-- ── Banner de instalação PWA ─────────────────────── -->
-<div id="pwa-banner" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-  background:var(--dark);border:1px solid var(--gold);border-radius:12px;padding:12px 16px;
-  box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:var(--z-pwa);align-items:center;gap:12px;max-width:340px;width:90%;">
-  <img src="{% static 'img/icons/icon-72x72.png' %}" style="width:36px;height:36px;border-radius:8px;flex-shrink:0;">
-  <div style="flex:1;min-width:0;">
-    <div style="font-size:13px;font-weight:700;color:var(--text);">Instalar SN Gestor</div>
-    <div style="font-size:11px;color:var(--muted);">Adicione à tela inicial do seu dispositivo</div>
-  </div>
-  <button onclick="instalarPWA()" class="btn btn-primary btn-sm" style="flex-shrink:0;">Instalar</button>
-  <button onclick="document.getElementById('pwa-banner').style.display='none'" class="btn-icon" style="flex-shrink:0;" aria-label="Fechar">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-  </button>
-</div>
 
 <!-- Scripts -->
 <script src="{% static 'js/api.js' %}"></script>
@@ -269,35 +255,6 @@ window.snChart = function(id, config) {
 </script>
 {% block extra_js %}{% endblock %}
 
-<!-- PWA — Service Worker -->
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/static/js/service-worker.js')
-      .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
-      .catch(err => console.warn('[PWA] Falha no registro:', err));
-  });
-}
-
-// Banner de instalação
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const banner = document.getElementById('pwa-banner');
-  if (banner) banner.style.display = 'flex';
-});
-
-function instalarPWA() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(() => {
-    deferredPrompt = null;
-    const banner = document.getElementById('pwa-banner');
-    if (banner) banner.style.display = 'none';
-  });
-}
-</script>
 
 </body>
 </html>

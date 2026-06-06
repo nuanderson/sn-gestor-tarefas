@@ -164,28 +164,5 @@ api.get('/api/v1/portal/resumo/').then(d => {
 </script>
 {% block extra_js %}{% endblock %}
 
-<!-- PWA -->
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/static/js/service-worker.js');
-  });
-}
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); deferredPrompt = e;
-  const b = document.getElementById('pwa-banner');
-  if (b) b.style.display = 'flex';
-});
-function instalarPWA() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(() => {
-    deferredPrompt = null;
-    const b = document.getElementById('pwa-banner');
-    if (b) b.style.display = 'none';
-  });
-}
-</script>
 </body>
 </html>

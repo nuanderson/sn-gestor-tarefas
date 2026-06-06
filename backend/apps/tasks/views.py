@@ -61,8 +61,19 @@ class TarefaViewSet(viewsets.ModelViewSet):
         return TarefaSerializer
 
     def get_queryset(self):
+        from django.db.models import Q
+        from apps.companies.models import Empresa
+
         qs     = super().get_queryset()
+        user   = self.request.user
         params = self.request.query_params
+
+        # Analistas e assistentes veem só tarefas das suas empresas
+        if not user.is_gestor_ou_acima:
+            ids = Empresa.objects.filter(
+                Q(responsavel=user) | Q(colaboradores=user)
+            ).values_list('id', flat=True)
+            qs = qs.filter(empresa__in=ids)
 
         if params.get('empresa'):
             qs = qs.filter(empresa=params['empresa'])

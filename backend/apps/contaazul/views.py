@@ -143,7 +143,18 @@ class VencimentoListView(APIView):
     permission_classes = [IsEquipeInterna]
 
     def get(self, request):
+        from django.db.models import Q
+        from apps.companies.models import Empresa
+
         qs = ContaAzulVencimento.objects.select_related('empresa').order_by('data_vencimento')
+
+        # Analistas e assistentes veem só vencimentos das suas empresas
+        user = request.user
+        if not user.is_gestor_ou_acima:
+            ids = Empresa.objects.filter(
+                Q(responsavel=user) | Q(colaboradores=user)
+            ).values_list('id', flat=True)
+            qs = qs.filter(empresa__in=ids)
 
         empresa_id   = request.query_params.get('empresa_id')
         tipo         = request.query_params.get('tipo')

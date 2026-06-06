@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from apps.accounts.serializers import UsuarioSerializer
+from apps.accounts.models import Usuario
 from .models import Empresa, Pagamento
 
 
@@ -12,18 +13,29 @@ class PagamentoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'criado_em']
 
 
+class ColaboradorSimpleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Usuario
+        fields = ['id', 'nome', 'email', 'perfil']
+
+
 class EmpresaSerializer(serializers.ModelSerializer):
     """Listagem — sem pagamentos aninhados."""
-    status_display      = serializers.CharField(source='get_status_display', read_only=True)
-    responsavel_nome    = serializers.CharField(source='responsavel.nome', read_only=True)
-    total_recebido      = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    status_display       = serializers.CharField(source='get_status_display', read_only=True)
+    responsavel_nome     = serializers.CharField(source='responsavel.nome', read_only=True)
+    total_recebido       = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     pagamentos_pendentes = serializers.IntegerField(read_only=True)
+    colaboradores        = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Usuario.objects.all(), required=False
+    )
+    colaboradores_info   = ColaboradorSimpleSerializer(source='colaboradores', many=True, read_only=True)
 
     class Meta:
         model  = Empresa
         fields = [
             'id', 'nome', 'cnpj', 'data_entrada', 'mensalidade',
-            'responsavel', 'responsavel_nome', 'status', 'status_display',
+            'responsavel', 'responsavel_nome', 'colaboradores', 'colaboradores_info',
+            'status', 'status_display',
             'observacoes', 'total_recebido', 'pagamentos_pendentes',
             'criado_em', 'atualizado_em',
         ]
