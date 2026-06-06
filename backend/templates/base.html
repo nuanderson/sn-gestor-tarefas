@@ -74,9 +74,6 @@
         Post-its
       </a>
 
-      {% if user.is_gestor_ou_acima %}
-      <div class="nav-section">Gestão</div>
-
       <a href="/financeiro/"
          class="nav-item {% block nav_financeiro %}{% endblock %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -85,6 +82,9 @@
         </svg>
         Vencimentos
       </a>
+
+      {% if user.is_gestor_ou_acima %}
+      <div class="nav-section">Gestão</div>
 
       <a href="/dashboard/geral/"
          class="nav-item {% block nav_dash_geral %}{% endblock %}">
