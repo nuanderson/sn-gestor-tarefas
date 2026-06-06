@@ -1,0 +1,611 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Empresa{% endblock %}
+{% block nav_empresas %}active{% endblock %}
+{% block page_title %}<span id="header-nome">Empresa</span>{% endblock %}
+{% block page_subtitle_text %}<a href="/empresas/" style="color:var(--muted);font-size:12px;">← Voltar para Empresas</a>{% endblock %}
+
+{% block header_actions %}
+{% if user.is_gestor_ou_acima %}
+<button class="btn btn-ghost btn-sm" onclick="modalEditar()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+  Editar
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+
+  <!-- Dados da empresa -->
+  <div class="card" id="card-dados">
+    <div class="skeleton" style="height:200px;border-radius:6px;"></div>
+  </div>
+
+  <!-- Resumo financeiro -->
+  <div class="card" id="card-financeiro">
+    <div class="skeleton" style="height:200px;border-radius:6px;"></div>
+  </div>
+
+</div>
+
+<!-- Conta Azul -->
+{% if user.is_gestor_ou_acima %}
+<div class="card" id="card-contaazul" style="margin-bottom:24px;">
+  <div class="skeleton" style="height:80px;border-radius:6px;"></div>
+</div>
+{% endif %}
+
+<!-- Tarefas da empresa -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Tarefas
+    </div>
+    <a href="/tarefas/" class="btn btn-ghost btn-sm">Ver todas</a>
+  </div>
+  <div id="lista-tarefas"><div class="skeleton" style="height:100px;border-radius:6px;"></div></div>
+</div>
+
+<!-- Pagamentos -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      Pagamentos
+    </div>
+    {% if user.is_gestor_ou_acima %}
+    <button class="btn btn-primary btn-sm" onclick="abrirNovoPagamento()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Novo
+    </button>
+    {% endif %}
+  </div>
+  <div id="lista-pagamentos"><div class="skeleton" style="height:80px;border-radius:6px;"></div></div>
+</div>
+
+<!-- ── Modal Conectar Conta Azul ────────────────────────────── -->
+{% if user.is_gestor_ou_acima %}
+<div class="modal-overlay" id="modal-contaazul">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">Conectar Conta Azul</div>
+      <button class="btn-icon" onclick="modalFechar('modal-contaazul')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;line-height:1.7;color:var(--text);margin-bottom:16px;">
+        Ao clicar em <strong>Continuar</strong>, você será redirecionado para o login do <strong>Conta Azul</strong>.
+        Faça login com as credenciais da empresa cliente no ERP deles.
+      </p>
+      <div style="background:rgba(200,164,94,.08);border:1px solid rgba(200,164,94,.25);border-radius:8px;padding:14px 16px;font-size:12px;color:var(--muted);line-height:1.7;">
+        <strong style="color:var(--gold);">O que acontece depois:</strong><br>
+        1. Login no Conta Azul com as credenciais da empresa<br>
+        2. Autorização do acesso ao SN Gestor<br>
+        3. Redirecionamento de volta com a conexão ativa<br>
+        4. Sync automático diário às 06h — contas a pagar viram tarefas
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-contaazul')">Cancelar</button>
+      <a id="link-conectar" href="/contaazul/connect/{{ empresa_id }}/" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+        Continuar para o Conta Azul
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Modal Editar Empresa ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Editar Empresa</div>
+      <button class="btn-icon" onclick="modalFechar('modal-editar')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Razão Social *</label>
+        <input type="text" id="edit-nome" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">CNPJ *</label>
+        <input type="text" id="edit-cnpj" class="form-control" placeholder="00.000.000/0000-00">
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label class="form-label">Mensalidade (R$)</label>
+          <input type="number" id="edit-mensalidade" step="0.01" min="0" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de entrada</label>
+          <input type="date" id="edit-data-entrada" class="form-control">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="edit-status" class="form-control">
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+            <option value="suspended">Suspenso</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsável</label>
+          <select id="edit-responsavel" class="form-control">
+            <option value="">— Sem responsável —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea id="edit-obs" class="form-control" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-editar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEmpresa()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal Novo / Editar Pagamento ────────────────────────── -->
+<div class="modal-overlay" id="modal-pagamento">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-pag-titulo">Novo Pagamento</div>
+      <button class="btn-icon" onclick="modalFechar('modal-pagamento')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pag-id">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label class="form-label">Referência</label>
+          <input type="text" id="pag-ref" class="form-control" placeholder="Ex: Junho/2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input type="date" id="pag-data" class="form-control">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label class="form-label">Valor (R$)</label>
+          <input type="number" id="pag-valor" step="0.01" min="0" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="pag-status" class="form-control">
+            <option value="paid">Pago</option>
+            <option value="pending">Pendente</option>
+            <option value="late">Atrasado</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="btn-excluir-pag" style="margin-right:auto;display:none;" onclick="excluirPagamento()">Excluir</button>
+      <button class="btn btn-ghost" onclick="modalFechar('modal-pagamento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarPagamento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const EMPRESA_ID = {{ empresa_id }};
+let dadosEmpresa = null;
+let pagIdAtual   = null;
+
+// Converte "dd/mm/yyyy" (formato da API) para Date
+function parseDataAPI(str) {
+  if (!str) return null;
+  // Se já é ISO (yyyy-mm-dd), converte direto
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str + 'T00:00:00');
+  // Formato dd/mm/yyyy
+  const [d, m, y] = str.split('/');
+  if (!d || !m || !y) return null;
+  return new Date(`${y}-${m}-${d}T00:00:00`);
+}
+
+function formatarDataLocal(str) {
+  const dt = parseDataAPI(str);
+  if (!dt || isNaN(dt)) return '—';
+  return dt.toLocaleDateString('pt-BR');
+}
+
+// Meses em português para gerar referência automaticamente
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+async function carregar() {
+  try {
+    const [empresa, tarefas] = await Promise.all([
+      api.get(`/api/v1/empresas/${EMPRESA_ID}/`),
+      api.get('/api/v1/tarefas/', { empresa: EMPRESA_ID, page_size: 10 }),
+    ]);
+    dadosEmpresa = empresa;
+    document.getElementById('header-nome').textContent = empresa.nome;
+    renderDados(empresa);
+    renderFinanceiro(empresa);
+    renderTarefas(tarefas.results || tarefas);
+    carregarPagamentos();
+    carregarEquipe();
+  } catch(e) {
+    toast('Erro ao carregar empresa: ' + e.message, 'error');
+  }
+}
+
+// Pré-carrega equipe para o select de responsável
+async function carregarEquipe() {
+  try {
+    const equipe = await api.get('/api/v1/usuarios/equipe/');
+    const sel = document.getElementById('edit-responsavel');
+    equipe.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = u.nome;
+      if (dadosEmpresa && u.id === dadosEmpresa.responsavel) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+function renderDados(e) {
+  const statusCor = { active: 'var(--green)', inactive: 'var(--muted)', suspended: 'var(--gold)' }[e.status] || 'var(--muted)';
+  const statusTxt = { active: 'Ativo', inactive: 'Inativo', suspended: 'Suspenso' }[e.status] || e.status;
+  const statusBg  = { active: 'rgba(34,197,94,.15)', inactive: 'rgba(156,163,175,.15)', suspended: 'rgba(200,164,94,.15)' }[e.status] || 'rgba(156,163,175,.15)';
+
+  document.getElementById('card-dados').innerHTML = `
+    <div class="card-header" style="align-items:flex-start;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:16px;font-weight:700;color:var(--white);margin-bottom:4px;">${e.nome}</div>
+        <div style="font-size:11px;color:var(--muted);">CNPJ: ${e.cnpj}</div>
+      </div>
+      <span style="background:${statusBg};color:${statusCor};font-size:11px;padding:3px 10px;border-radius:20px;flex-shrink:0;">${statusTxt}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Mensalidade</div>
+        <div style="font-size:16px;font-weight:700;color:var(--gold);">R$ ${parseFloat(e.mensalidade||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Cliente desde</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);">${formatarDataLocal(e.data_entrada)}</div>
+      </div>
+      ${e.responsavel_nome ? `
+      <div style="grid-column:1/-1;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Responsável</div>
+        <div style="font-size:13px;color:var(--text);">${e.responsavel_nome}</div>
+      </div>` : ''}
+    </div>
+    ${e.observacoes ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6;">${e.observacoes}</div>` : ''}
+  `;
+}
+
+function renderFinanceiro(e) {
+  document.getElementById('card-financeiro').innerHTML = `
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Resumo Financeiro
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+      <div style="text-align:center;padding:16px 12px;background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.2);border-radius:8px;">
+        <div style="font-size:22px;font-weight:700;color:var(--green);">R$ ${parseFloat(e.total_recebido||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Total recebido</div>
+      </div>
+      <div style="text-align:center;padding:16px 12px;background:${(e.pagamentos_pendentes||0)>0?'rgba(231,76,60,.08)':'rgba(255,255,255,.03)'};border:1px solid ${(e.pagamentos_pendentes||0)>0?'rgba(231,76,60,.2)':'var(--border)'};border-radius:8px;">
+        <div style="font-size:22px;font-weight:700;color:${(e.pagamentos_pendentes||0)>0?'var(--red)':'var(--muted)'};">${e.pagamentos_pendentes||0}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Pagamentos pendentes</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTarefas(lista) {
+  const el = document.getElementById('lista-tarefas');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0"><p>Nenhuma tarefa para esta empresa.</p></div>';
+    return;
+  }
+  el.innerHTML = lista.slice(0,8).map(t => `
+    <a href="/tarefas/${t.id}/" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);text-decoration:none;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.titulo}</div>
+        <div style="font-size:11px;color:var(--muted);">${t.responsavel_nome || 'Sem responsável'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        ${t.prazo ? `<div style="font-size:11px;color:var(--gold);margin-bottom:2px;">${formatarDataLocal(t.prazo)}</div>` : ''}
+        ${badgeStatus(t.status)}
+      </div>
+    </a>
+  `).join('');
+}
+
+async function carregarPagamentos() {
+  try {
+    const pags = await api.get(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/`);
+    renderPagamentos(Array.isArray(pags) ? pags : (pags.results || []));
+  } catch {}
+}
+
+function renderPagamentos(lista) {
+  const el = document.getElementById('lista-pagamentos');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0"><p>Nenhum pagamento registrado.</p></div>';
+    return;
+  }
+
+  const corStatus = { paid: 'var(--green)', pending: 'var(--gold)', late: 'var(--red)' };
+  const txtStatus = { paid: 'Pago', pending: 'Pendente', late: 'Atrasado' };
+
+  const isGestor = {{ user.is_gestor_ou_acima|yesno:"true,false" }};
+
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:500;">Referência</th>
+        <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:500;">Data</th>
+        <th style="text-align:right;padding:6px 8px;color:var(--muted);font-weight:500;">Valor</th>
+        <th style="text-align:center;padding:6px 8px;color:var(--muted);font-weight:500;">Status</th>
+        ${isGestor ? '<th style="width:32px;"></th>' : ''}
+      </tr></thead>
+      <tbody>
+        ${lista.map(p => `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;">${p.referencia || '—'}</td>
+            <td style="padding:8px;color:var(--muted);">${formatarDataLocal(p.data)}</td>
+            <td style="padding:8px;text-align:right;font-weight:600;">R$ ${parseFloat(p.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="padding:8px;text-align:center;">
+              ${isGestor && p.status !== 'paid'
+                ? `<button onclick="darBaixa(${p.id})" style="background:rgba(39,174,96,.15);color:var(--green);border:1px solid rgba(39,174,96,.3);border-radius:20px;font-size:11px;padding:2px 10px;cursor:pointer;" title="Dar baixa (marcar como pago)">Dar baixa</button>`
+                : `<span style="color:${corStatus[p.status]||'var(--muted)'};font-size:11px;font-weight:600;">${txtStatus[p.status]||p.status}</span>`
+              }
+            </td>
+            ${isGestor ? `
+            <td style="padding:4px;">
+              <button class="btn-icon" onclick='editarPagamento(${JSON.stringify(p)})' title="Editar">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </td>` : ''}
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// ── Empresa ────────────────────────────────────────────────
+function modalEditar() {
+  if (!dadosEmpresa) return;
+  document.getElementById('edit-nome').value        = dadosEmpresa.nome;
+  document.getElementById('edit-cnpj').value        = dadosEmpresa.cnpj;
+  document.getElementById('edit-mensalidade').value = dadosEmpresa.mensalidade;
+  document.getElementById('edit-status').value      = dadosEmpresa.status;
+  document.getElementById('edit-obs').value         = dadosEmpresa.observacoes || '';
+
+  // Converte data dd/mm/yyyy → yyyy-mm-dd para o input[type=date]
+  const dt = parseDataAPI(dadosEmpresa.data_entrada);
+  if (dt && !isNaN(dt)) {
+    document.getElementById('edit-data-entrada').value = dt.toISOString().split('T')[0];
+  }
+
+  // Atualiza responsável selecionado
+  document.getElementById('edit-responsavel').value = dadosEmpresa.responsavel || '';
+  modalAbrir('modal-editar');
+}
+
+async function salvarEmpresa() {
+  const nome = document.getElementById('edit-nome').value.trim();
+  if (!nome) { toast('Nome é obrigatório.', 'error'); return; }
+  try {
+    await api.patch(`/api/v1/empresas/${EMPRESA_ID}/`, {
+      nome,
+      cnpj:          document.getElementById('edit-cnpj').value.trim(),
+      mensalidade:   document.getElementById('edit-mensalidade').value,
+      status:        document.getElementById('edit-status').value,
+      observacoes:   document.getElementById('edit-obs').value,
+      data_entrada:  document.getElementById('edit-data-entrada').value || null,
+      responsavel:   document.getElementById('edit-responsavel').value || null,
+    });
+    modalFechar('modal-editar');
+    toast('Empresa atualizada!', 'success');
+    carregar();
+  } catch(e) { toast('Erro ao salvar: ' + e.message, 'error'); }
+}
+
+// ── Pagamentos ─────────────────────────────────────────────
+function abrirNovoPagamento() {
+  pagIdAtual = null;
+  document.getElementById('modal-pag-titulo').textContent = 'Novo Pagamento';
+  document.getElementById('pag-id').value     = '';
+  document.getElementById('pag-data').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('pag-valor').value  = dadosEmpresa?.mensalidade || '';
+  document.getElementById('pag-status').value = 'paid';
+  // Referência automática: mês/ano atual
+  const hoje = new Date();
+  document.getElementById('pag-ref').value = `${MESES_PT[hoje.getMonth()]}/${hoje.getFullYear()}`;
+  document.getElementById('btn-excluir-pag').style.display = 'none';
+  modalAbrir('modal-pagamento');
+}
+
+function editarPagamento(p) {
+  pagIdAtual = p.id;
+  document.getElementById('modal-pag-titulo').textContent = 'Editar Pagamento';
+  document.getElementById('pag-id').value     = p.id;
+  document.getElementById('pag-ref').value    = p.referencia || '';
+  document.getElementById('pag-status').value = p.status;
+  document.getElementById('pag-valor').value  = p.valor;
+
+  const dt = parseDataAPI(p.data);
+  document.getElementById('pag-data').value = dt && !isNaN(dt) ? dt.toISOString().split('T')[0] : '';
+
+  document.getElementById('btn-excluir-pag').style.display = 'inline-flex';
+  modalAbrir('modal-pagamento');
+}
+
+async function darBaixa(pagId) {
+  if (!confirm('Marcar este pagamento como PAGO?')) return;
+  try {
+    await api.patch(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/${pagId}/`, { status: 'paid' });
+    toast('Pagamento baixado!', 'success');
+    carregarPagamentos();
+    carregar();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function salvarPagamento() {
+  const data  = document.getElementById('pag-data').value;
+  const valor = document.getElementById('pag-valor').value;
+  if (!data || !valor) { toast('Data e valor são obrigatórios.', 'error'); return; }
+
+  const body = {
+    data,
+    valor,
+    status:    document.getElementById('pag-status').value,
+    referencia: document.getElementById('pag-ref').value.trim(),
+  };
+
+  try {
+    if (pagIdAtual) {
+      await api.patch(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/${pagIdAtual}/`, body);
+      toast('Pagamento atualizado!', 'success');
+    } else {
+      await api.post(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/`, body);
+      toast('Pagamento registrado!', 'success');
+    }
+    modalFechar('modal-pagamento');
+    pagIdAtual = null;
+    carregarPagamentos();
+    carregar();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function excluirPagamento() {
+  if (!pagIdAtual) return;
+  if (!confirm('Excluir este pagamento? Esta ação não pode ser desfeita.')) return;
+  try {
+    await api.delete(`/api/v1/empresas/${EMPRESA_ID}/pagamentos/${pagIdAtual}/`);
+    toast('Pagamento excluído.', 'success');
+    modalFechar('modal-pagamento');
+    pagIdAtual = null;
+    carregarPagamentos();
+    carregar();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+// ── Conta Azul ─────────────────────────────────────────────
+async function carregarContaAzul() {
+  const card = document.getElementById('card-contaazul');
+  if (!card) return;
+
+  try {
+    const s = await api.get(`/api/v1/contaazul/status/${EMPRESA_ID}/`);
+    renderCardContaAzul(card, s);
+  } catch {
+    card.innerHTML = '';
+  }
+}
+
+function renderCardContaAzul(card, s) {
+  if (!s.conectado) {
+    card.innerHTML = `
+      <div class="card-header" style="align-items:center;">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+          Conta Azul
+        </div>
+        <span style="font-size:11px;color:var(--muted);background:rgba(156,163,175,.12);padding:3px 10px;border-radius:20px;">Não conectado</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+        <p style="font-size:12px;color:var(--muted);margin:0;">
+          Conecte o Conta Azul desta empresa para importar contas a pagar e gerar tarefas automaticamente.
+        </p>
+        <button class="btn btn-primary btn-sm" onclick="modalAbrir('modal-contaazul')" style="margin-left:16px;flex-shrink:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+          Conectar
+        </button>
+      </div>`;
+    return;
+  }
+
+  const expira = new Date(s.expires_at);
+  const ativo  = s.ativo;
+  const sincEm = s.atualizado_em ? new Date(s.atualizado_em).toLocaleString('pt-BR') : '—';
+
+  card.innerHTML = `
+    <div class="card-header" style="align-items:center;">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+        </svg>
+        Conta Azul
+      </div>
+      <span style="font-size:11px;color:${ativo ? 'var(--green)' : 'var(--gold)'};background:${ativo ? 'rgba(34,197,94,.12)' : 'rgba(200,164,94,.12)'};padding:3px 10px;border-radius:20px;">
+        ${ativo ? '● Conectado' : '⚠ Token expirado'}
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:12px;color:var(--muted);">
+        Token atualizado em: <strong style="color:var(--text);">${sincEm}</strong>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="syncContaAzul()" id="btn-sync-empresa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Sincronizar
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="modalAbrir('modal-contaazul')" title="Reconectar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+          Reconectar
+        </button>
+      </div>
+    </div>`;
+}
+
+async function syncContaAzul() {
+  const btn = document.getElementById('btn-sync-empresa');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando...'; }
+  try {
+    const r = await fetch(`/api/v1/contaazul/sync/${EMPRESA_ID}/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1]||'' }
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || 'Erro');
+    toast(`Sync OK — ${d.criados} novo(s), ${d.atualizados} atualizado(s)`);
+  } catch(e) {
+    toast('Erro no sync: ' + e.message, 'error');
+  } finally {
+    carregarContaAzul();
+  }
+}
+
+carregar();
+carregarContaAzul();
+</script>
+{% endblock %}

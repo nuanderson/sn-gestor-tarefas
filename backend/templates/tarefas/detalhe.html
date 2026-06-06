@@ -1,0 +1,642 @@
+{% extends 'base.html' %}
+{% block title %}Tarefa{% endblock %}
+{% block nav_tarefas %}active{% endblock %}
+{% block page_title %}<span id="header-titulo" style="font-size:15px;">Carregando...</span>{% endblock %}
+{% block page_subtitle_text %}<a href="/tarefas/" style="color:var(--muted);font-size:12px;">← Voltar para Tarefas</a>{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-ghost btn-sm" onclick="modalAbrir('modal-editar')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+  Editar
+</button>
+<button class="btn btn-primary btn-sm" id="btn-status" onclick="alterarStatus()">...</button>
+{% endblock %}
+
+{% block content %}
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:20px; align-items:start;">
+
+  <!-- ── Coluna esquerda ─────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Info principal -->
+    <div class="card" id="card-info">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;" id="tarefa-badges"></div>
+      <h2 id="tarefa-titulo" style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:8px;"></h2>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;" id="tarefa-meta"></div>
+      <div id="tarefa-obs" style="font-size:13px;color:var(--muted);line-height:1.7;"></div>
+      <div id="tarefa-link" style="margin-top:12px;display:none;">
+        <a id="link-doc" href="#" target="_blank" class="btn btn-ghost btn-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Ver Documento (Drive)
+        </a>
+      </div>
+    </div>
+
+    <!-- Timer -->
+    <div class="card" id="card-timer">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Timer de Trabalho
+        </div>
+        <span id="timer-total" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="font-size:36px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;min-width:120px;" id="timer-display">00:00:00</div>
+        <div style="display:flex;gap:8px;" id="timer-botoes">
+          <button class="btn btn-ghost" id="btn-timer-pausar" style="display:none;" onclick="pausarTimer()">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            Pausar
+          </button>
+          <button class="btn btn-ghost" id="btn-timer-retomar" style="display:none;" onclick="retomarTimer()">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Retomar
+          </button>
+        </div>
+      </div>
+      <div id="timer-inativo-msg" style="display:none;margin-top:10px;font-size:12px;color:var(--muted);">
+        Inicie a tarefa para começar a contar o tempo.
+      </div>
+    </div>
+
+    <!-- Checklist -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            Checklist
+          </div>
+          <div class="card-subtitle" id="checklist-progresso"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('form-add-item').style.display='flex'">+ Adicionar</button>
+      </div>
+
+      <div id="checklist-lista"></div>
+
+      <div id="form-add-item" style="display:none;gap:8px;margin-top:12px;">
+        <input type="text" class="form-control" id="novo-item-txt" placeholder="Novo item..." style="flex:1;"
+               onkeydown="if(event.key==='Enter') adicionarItem()">
+        <button class="btn btn-primary btn-sm" onclick="adicionarItem()">Adicionar</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('form-add-item').style.display='none'">✕</button>
+      </div>
+    </div>
+
+    <!-- Chat / Comentários -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Comentários
+        </div>
+      </div>
+
+      <div id="chat-lista" style="max-height:400px;overflow-y:auto;margin-bottom:16px;"></div>
+
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <textarea class="form-control" id="novo-comentario" rows="2"
+          placeholder="Escreva um comentário... (Enter para enviar, Shift+Enter para nova linha)"
+          style="flex:1;resize:none;"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarComentario();}"></textarea>
+        <button class="btn btn-primary" onclick="enviarComentario()" style="align-self:flex-end;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /coluna esquerda -->
+
+  <!-- ── Coluna direita ──────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Resumo / detalhes -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Detalhes
+      </div>
+      <div id="detalhes-lista"></div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4H1"/><polyline points="1 3 1 7 5 7"/></svg>
+          Histórico
+        </div>
+      </div>
+      <div id="historico-lista" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+
+  </div><!-- /coluna direita -->
+
+</div><!-- /grid -->
+
+<!-- ── Modal Editar Tarefa ───────────────────────────────── -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Editar Tarefa</div>
+      <button class="btn-icon" onclick="modalFechar('modal-editar')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="ed-titulo">Título *</label>
+          <input type="text" class="form-control" id="ed-titulo">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ed-responsavel">Responsável</label>
+          <select class="form-control" id="ed-responsavel"><option value="">— Sem responsável —</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ed-prazo">Prazo</label>
+          <input type="date" class="form-control" id="ed-prazo">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ed-prioridade">Prioridade</label>
+          <select class="form-control" id="ed-prioridade">
+            <option value="low">Baixa</option><option value="medium">Média</option>
+            <option value="high">Alta</option><option value="urgent">Urgente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ed-categoria">Categoria</label>
+          <select class="form-control" id="ed-categoria">
+            <option value="">Sem categoria</option>
+            <option value="fiscal">Fiscal</option><option value="financeiro">Financeiro</option>
+            <option value="contabil">Contábil</option><option value="folha">Folha de Pagamento</option>
+            <option value="juridico">Jurídico</option><option value="outros">Outros</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="ed-observacoes">Observações</label>
+          <textarea class="form-control" id="ed-observacoes" rows="3"></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="ed-link">Link do Documento (Google Drive)</label>
+          <input type="url" class="form-control" id="ed-link">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" style="margin-right:auto;" onclick="excluirTarefa()">Excluir Tarefa</button>
+      <button class="btn btn-ghost" onclick="modalFechar('modal-editar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmação exclusão -->
+<div class="modal-overlay" id="modal-confirmar-exclusao">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--red);">Excluir Tarefa</div>
+      <button class="btn-icon" onclick="modalFechar('modal-confirmar-exclusao')" aria-label="Fechar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--text);line-height:1.6;">Tem certeza que deseja excluir esta tarefa? <strong>Esta ação não pode ser desfeita.</strong></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-confirmar-exclusao')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarExclusao()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Excluir definitivamente
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TAREFA_ID = {{ tarefa_id }};
+let tarefa = null;
+let sessaoAtiva = null;
+let timerInterval = null;
+let timerSegundos = 0;
+
+// ── Carrega tudo ──────────────────────────────────────────
+async function carregarTarefa() {
+  try {
+    tarefa = await api.get(`/api/v1/tarefas/${TAREFA_ID}/`);
+    renderTarefa();
+    renderChecklist();
+    renderChat();
+    renderHistorico();
+    carregarSessaoAtiva();
+    preencherFormEditar();
+  } catch(e) {
+    toast('Erro ao carregar tarefa.', 'error');
+  }
+}
+
+// ── Render principal ──────────────────────────────────────
+function renderTarefa() {
+  document.getElementById('header-titulo').textContent = tarefa.titulo;
+  document.getElementById('tarefa-titulo').textContent = tarefa.titulo;
+
+  // Badges
+  document.getElementById('tarefa-badges').innerHTML = `
+    ${badgeStatus(tarefa.status)}
+    <span class="badge prio-${tarefa.prioridade}" style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.05);">
+      ${{urgent:'Urgente',high:'Alta',medium:'Média',low:'Baixa'}[tarefa.prioridade]}
+    </span>
+    ${tarefa.categoria ? `<span class="badge" style="background:rgba(200,164,94,.1);color:var(--gold);">${tarefa.categoria}</span>` : ''}
+    ${tarefa.recorrencia !== 'none' ? `<span class="badge" style="background:rgba(155,89,182,.1);color:#9B59B6;">${{weekdays:'Dias Úteis',daily:'Diária',weekly:'Semanal',biweekly:'Quinzenal',monthly:'Mensal',yearly:'Anual'}[tarefa.recorrencia] || tarefa.recorrencia}</span>` : ''}
+  `;
+
+  // Botão de status
+  const mapa = {
+    pending:  { label:'Iniciar',  prox:'progress', cls:'btn-primary' },
+    progress: { label:'Concluir', prox:'done',     cls:'btn-primary' },
+    done:     { label:'Reabrir',  prox:'pending',  cls:'btn-ghost'   },
+    late:     { label:'Iniciar',  prox:'progress', cls:'btn-primary' },
+  };
+  const m = mapa[tarefa.status] || mapa.pending;
+  const btn = document.getElementById('btn-status');
+  btn.textContent = m.label;
+  btn.className = `btn ${m.cls} btn-sm`;
+  btn._prox = m.prox;
+
+  // Meta info
+  const _ico = (d) => `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">${d}</svg>`;
+  document.getElementById('tarefa-meta').innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
+      ${_ico('<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>')}
+      <span style="color:var(--text)">${tarefa.empresa_nome}</span>
+    </div>
+    ${tarefa.responsavel_nome ? `
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">
+      ${_ico('<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>')}
+      <span style="color:var(--text)">${tarefa.responsavel_nome}</span>
+    </div>` : ''}
+    ${tarefa.prazo ? `
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:${tarefa.esta_atrasada?'var(--red)':'var(--muted)'};">
+      ${_ico('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}
+      <span>${formatarData(tarefa.prazo)}${tarefa.esta_atrasada?' — Atrasada':''}</span>
+    </div>` : ''}
+    <div style="font-size:12px;color:var(--muted);">Criado ${tempoRelativo(tarefa.criado_em)}</div>
+  `;
+
+  // Observações
+  const obsEl = document.getElementById('tarefa-obs');
+  obsEl.innerHTML = tarefa.observacoes
+    ? tarefa.observacoes.replace(/\n/g,'<br>')
+    : '<em style="color:var(--muted)">Sem observações.</em>';
+
+  // Link
+  if (tarefa.link_documento) {
+    document.getElementById('tarefa-link').style.display = 'block';
+    document.getElementById('link-doc').href = tarefa.link_documento;
+  }
+
+  // Detalhes sidebar
+  document.getElementById('detalhes-lista').innerHTML = `
+    ${linha('Empresa',      tarefa.empresa_nome)}
+    ${linha('Responsável',  tarefa.responsavel_nome || '—')}
+    ${linha('Prazo',        formatarData(tarefa.prazo))}
+    ${linha('Prioridade',   {urgent:'Urgente',high:'Alta',medium:'Média',low:'Baixa'}[tarefa.prioridade])}
+    ${linha('Status',       {pending:'Pendente',progress:'Em Andamento',done:'Concluída',late:'Atrasada'}[tarefa.status])}
+    ${linha('Categoria',    tarefa.categoria || '—')}
+    ${linha('Recorrência',  {none:'Sem recorrência',weekdays:'Dias Úteis',daily:'Diária',weekly:'Semanal',biweekly:'Quinzenal',monthly:'Mensal',yearly:'Anual'}[tarefa.recorrencia])}
+    ${linha('Criado em',    formatarDataHora(tarefa.criado_em))}
+    ${tarefa.concluida_em ? linha('Concluído em', formatarDataHora(tarefa.concluida_em)) : ''}
+    ${linha('Tempo total',  tarefa.tempo_total_minutos ? `${Math.floor(tarefa.tempo_total_minutos/60)}h ${tarefa.tempo_total_minutos%60}min` : '—')}
+  `;
+}
+
+function linha(label, valor) {
+  return `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <span style="color:var(--muted);">${label}</span>
+      <span style="color:var(--text);font-weight:500;text-align:right;max-width:60%;">${valor || '—'}</span>
+    </div>`;
+}
+
+// ── Alterar status ────────────────────────────────────────
+async function alterarStatus() {
+  const novoStatus = document.getElementById('btn-status')._prox;
+  try {
+    if (novoStatus === 'progress') {
+      // Iniciar: muda status e liga o timer
+      await api.patch(`/api/v1/tarefas/${TAREFA_ID}/`, { status: novoStatus });
+      await _iniciarTimerInterno();
+    } else if (novoStatus === 'done') {
+      // Concluir: finaliza o timer (se ativo) e conclui a tarefa
+      await _finalizarTimerInterno();
+      await api.post(`/api/v1/tarefas/${TAREFA_ID}/concluir/`);
+    } else {
+      await api.patch(`/api/v1/tarefas/${TAREFA_ID}/`, { status: novoStatus });
+    }
+    toast('Status atualizado!', 'success');
+    carregarTarefa();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+// ── Checklist ─────────────────────────────────────────────
+function renderChecklist() {
+  const lista = tarefa.checklist || [];
+  const total     = lista.length;
+  const concluidos = lista.filter(i => i.concluido).length;
+
+  document.getElementById('checklist-progresso').textContent =
+    total ? `${concluidos}/${total} itens — ${Math.round(concluidos/total*100)}%` : 'Nenhum item ainda';
+
+  if (!total) {
+    document.getElementById('checklist-lista').innerHTML =
+      '<p style="color:var(--muted);font-size:13px;padding:8px 0;">Nenhum item no checklist.</p>';
+    return;
+  }
+
+  document.getElementById('checklist-lista').innerHTML = lista.map(item => `
+    <div class="checklist-item">
+      <div class="checklist-check ${item.concluido ? 'checked' : ''}" onclick="toggleItem(${item.id}, ${!item.concluido})">
+        ${item.concluido ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      </div>
+      <span class="checklist-texto ${item.concluido ? 'done' : ''}">${item.titulo}</span>
+      <button onclick="removerItem(${item.id})" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;line-height:1;" title="Remover">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+async function toggleItem(id, concluido) {
+  try {
+    await api.patch(`/api/v1/tarefas/${TAREFA_ID}/checklist/${id}/`, { concluido });
+    tarefa.checklist = tarefa.checklist.map(i => i.id === id ? {...i, concluido} : i);
+    renderChecklist();
+  } catch(e) { toast('Erro ao atualizar item.', 'error'); }
+}
+
+async function adicionarItem() {
+  const txt = document.getElementById('novo-item-txt').value.trim();
+  if (!txt) return;
+  try {
+    const item = await api.post(`/api/v1/tarefas/${TAREFA_ID}/checklist/`, { titulo: txt });
+    tarefa.checklist = [...(tarefa.checklist || []), item];
+    document.getElementById('novo-item-txt').value = '';
+    document.getElementById('form-add-item').style.display = 'none';
+    renderChecklist();
+  } catch(e) { toast('Erro ao adicionar item.', 'error'); }
+}
+
+async function removerItem(id) {
+  try {
+    await api.delete(`/api/v1/tarefas/${TAREFA_ID}/checklist/${id}/`);
+    tarefa.checklist = tarefa.checklist.filter(i => i.id !== id);
+    renderChecklist();
+  } catch(e) { toast('Erro ao remover item.', 'error'); }
+}
+
+// ── Chat ──────────────────────────────────────────────────
+function renderChat() {
+  const comentarios = tarefa.comentarios || [];
+  const el = document.getElementById('chat-lista');
+
+  if (!comentarios.length) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">Nenhum comentário ainda. Seja o primeiro!</p>';
+    return;
+  }
+
+  const meuId = {{ user.id }};
+  el.innerHTML = comentarios.map(c => {
+    const meu = c.autor === meuId;
+    return `
+      <div class="chat-msg ${meu ? 'minha' : ''}">
+        ${!meu ? `<div class="avatar avatar-sm">${initiais(c.autor_nome || 'SN')}</div>` : ''}
+        <div>
+          ${!meu ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${c.autor_nome}</div>` : ''}
+          <div class="chat-bubble">${c.texto.replace(/\n/g,'<br>')}${c.editado?'<span style="font-size:10px;opacity:.5;margin-left:6px;">(editado)</span>':''}</div>
+          <div class="chat-meta">${tempoRelativo(c.criado_em)}</div>
+        </div>
+        ${meu ? `<div class="avatar avatar-sm">${initiais('{{ user.nome }}')}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Scroll para o fim
+  el.scrollTop = el.scrollHeight;
+}
+
+async function enviarComentario() {
+  const txt = document.getElementById('novo-comentario').value.trim();
+  if (!txt) return;
+  try {
+    const novo = await api.post(`/api/v1/tarefas/${TAREFA_ID}/comentarios/`, { texto: txt });
+    tarefa.comentarios = [...(tarefa.comentarios || []), novo];
+    document.getElementById('novo-comentario').value = '';
+    renderChat();
+  } catch(e) { toast('Erro ao enviar comentário.', 'error'); }
+}
+
+// ── Histórico ─────────────────────────────────────────────
+function renderHistorico() {
+  const hist = tarefa.historico || [];
+  const el = document.getElementById('historico-lista');
+
+  if (!hist.length) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:8px 0;">Sem histórico.</p>';
+    return;
+  }
+
+  const _svgAcao = {
+    criou:     '<path d="M12 5v14M5 12h14"/>',
+    editou:    '<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/>',
+    concluiu:  '<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    reabriu:   '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>',
+    comentou:  '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',
+    checklist: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',
+    timer:     '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  };
+
+  el.innerHTML = hist.map(h => `
+    <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" style="flex-shrink:0;margin-top:2px;opacity:.7">${_svgAcao[h.acao] || '<circle cx="12" cy="12" r="10"/>'}</svg>
+      <div>
+        <div style="color:var(--text);"><strong>${h.usuario_nome || 'Sistema'}</strong> ${h.detalhe || h.acao}</div>
+        <div style="color:var(--muted);font-size:11px;">${tempoRelativo(h.criado_em)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Timer ─────────────────────────────────────────────────
+async function carregarSessaoAtiva() {
+  try {
+    const data = await api.get(`/api/v1/tarefas/${TAREFA_ID}/timer/`);
+    // Endpoint retorna { sessao_ativa: bool, sessao: {...} }
+    const sessao = data.sessao;
+    sessaoAtiva = sessao;
+    if (sessao && sessao.id) {
+      timerSegundos = Math.floor(sessao.tempo_decorrido_segundos || 0);
+      if (sessao.status === 'ativa') {
+        iniciarContagem();
+        mostrarBotoes('ativa');
+      } else if (sessao.status === 'pausada') {
+        atualizarDisplay(timerSegundos);
+        mostrarBotoes('pausada');
+      }
+    } else {
+      mostrarBotoes('inativa');
+    }
+    // Total de horas registradas
+    if (tarefa.tempo_total_minutos) {
+      const h = Math.floor(tarefa.tempo_total_minutos / 60);
+      const m = tarefa.tempo_total_minutos % 60;
+      document.getElementById('timer-total').textContent = `Total registrado: ${h}h${m > 0 ? m + 'min' : ''}`;
+    }
+  } catch { mostrarBotoes('inativa'); }
+}
+
+// Usado internamente por alterarStatus() — não mostra toast próprio
+async function _iniciarTimerInterno() {
+  try {
+    const resp = await api.post(`/api/v1/tarefas/${TAREFA_ID}/timer/iniciar/`);
+    sessaoAtiva = resp.sessao;
+    timerSegundos = 0;
+    iniciarContagem();
+    mostrarBotoes('ativa');
+  } catch(e) {
+    // Se já há timer ativo (outro timer), apenas sincroniza
+    const data = await api.get(`/api/v1/tarefas/${TAREFA_ID}/timer/`);
+    sessaoAtiva = data.sessao;
+    if (sessaoAtiva?.status === 'ativa') {
+      timerSegundos = Math.floor(sessaoAtiva.tempo_decorrido_segundos || 0);
+      iniciarContagem();
+      mostrarBotoes('ativa');
+    }
+  }
+}
+
+// Finaliza o timer se houver um ativo — silencioso se não houver
+async function _finalizarTimerInterno() {
+  if (!sessaoAtiva?.id) return;
+  try {
+    const resultado = await api.post(`/api/v1/tarefas/${TAREFA_ID}/timer/finalizar/`);
+    clearInterval(timerInterval);
+    timerSegundos = 0;
+    atualizarDisplay(0);
+    sessaoAtiva = null;
+    mostrarBotoes('inativa');
+    const mins = resultado?.sessao?.duracao_minutos || 0;
+    if (mins > 0) toast(`Tempo registrado: ${Math.floor(mins/60)}h${mins%60}min`, 'success');
+  } catch {}
+}
+
+async function pausarTimer() {
+  try {
+    await api.post(`/api/v1/tarefas/${TAREFA_ID}/timer/pausar/`);
+    clearInterval(timerInterval);
+    mostrarBotoes('pausada');
+    toast('Timer pausado.', 'default');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function retomarTimer() {
+  try {
+    await api.post(`/api/v1/tarefas/${TAREFA_ID}/timer/retomar/`);
+    iniciarContagem();
+    mostrarBotoes('ativa');
+    toast('Timer retomado!', 'default');
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+function iniciarContagem() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSegundos++;
+    atualizarDisplay(timerSegundos);
+  }, 1000);
+}
+
+function atualizarDisplay(segundos) {
+  const h = Math.floor(segundos / 3600);
+  const m = Math.floor((segundos % 3600) / 60);
+  const s = segundos % 60;
+  document.getElementById('timer-display').textContent =
+    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function mostrarBotoes(estado) {
+  const pau  = document.getElementById('btn-timer-pausar');
+  const ret  = document.getElementById('btn-timer-retomar');
+  const msg  = document.getElementById('timer-inativo-msg');
+  pau.style.display  = estado === 'ativa'   ? 'inline-flex' : 'none';
+  ret.style.display  = estado === 'pausada' ? 'inline-flex' : 'none';
+  msg.style.display  = estado === 'inativa' ? 'block'       : 'none';
+}
+
+// ── Editar tarefa ─────────────────────────────────────────
+async function preencherFormEditar() {
+  document.getElementById('ed-titulo').value      = tarefa.titulo;
+  document.getElementById('ed-prazo').value       = tarefa.prazo || '';
+  document.getElementById('ed-prioridade').value  = tarefa.prioridade;
+  document.getElementById('ed-categoria').value   = tarefa.categoria || '';
+  document.getElementById('ed-observacoes').value = tarefa.observacoes || '';
+  document.getElementById('ed-link').value        = tarefa.link_documento || '';
+
+  // Carrega lista de usuários para o select de responsável
+  try {
+    const users = await api.get('/api/v1/usuarios/');
+    const lista = users.results || users;
+    const sel = document.getElementById('ed-responsavel');
+    lista.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = u.nome;
+      if (u.id === tarefa.responsavel) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+async function salvarEdicao() {
+  const body = {
+    titulo:         document.getElementById('ed-titulo').value.trim(),
+    responsavel:    document.getElementById('ed-responsavel').value || null,
+    prazo:          document.getElementById('ed-prazo').value || null,
+    prioridade:     document.getElementById('ed-prioridade').value,
+    categoria:      document.getElementById('ed-categoria').value,
+    observacoes:    document.getElementById('ed-observacoes').value,
+    link_documento: document.getElementById('ed-link').value,
+  };
+
+  try {
+    await api.patch(`/api/v1/tarefas/${TAREFA_ID}/`, body);
+    toast('Tarefa atualizada!', 'success');
+    modalFechar('modal-editar');
+    carregarTarefa();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+function excluirTarefa() {
+  modalFechar('modal-editar');
+  modalAbrir('modal-confirmar-exclusao');
+}
+
+async function confirmarExclusao() {
+  try {
+    await api.delete(`/api/v1/tarefas/${TAREFA_ID}/`);
+    toast('Tarefa excluída.', 'success');
+    setTimeout(() => window.location.href = '/tarefas/', 1000);
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+// ── Inicializa ────────────────────────────────────────────
+carregarTarefa();
+
+// Para o timer quando sair da página
+window.addEventListener('beforeunload', () => clearInterval(timerInterval));
+</script>
+{% endblock %}

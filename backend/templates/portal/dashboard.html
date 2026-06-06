@@ -1,0 +1,111 @@
+{% extends 'portal/base_portal.html' %}
+
+{% block title %}Início{% endblock %}
+{% block nav_inicio %}active{% endblock %}
+{% block page_title %}Bem-vindo ao Portal{% endblock %}
+{% block page_subtitle %}Resumo da sua conta{% endblock %}
+
+{% block content %}
+
+<div class="metric-grid" id="metricas" style="margin-bottom:24px;">
+  <div class="metric-card gold skeleton" style="height:90px;"></div>
+  <div class="metric-card green skeleton" style="height:90px;"></div>
+  <div class="metric-card blue skeleton" style="height:90px;"></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+  <!-- Documentos recentes -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📄 Documentos Recentes</div>
+      <a href="/portal/documentos/" class="btn btn-ghost btn-sm">Ver todos</a>
+    </div>
+    <div id="docs-recentes">
+      <div class="skeleton" style="height:14px;margin-bottom:10px;border-radius:4px;"></div>
+      <div class="skeleton" style="height:14px;margin-bottom:10px;width:80%;border-radius:4px;"></div>
+    </div>
+  </div>
+
+  <!-- Boletos em aberto -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🧾 Boletos em Aberto</div>
+      <a href="/portal/boletos/" class="btn btn-ghost btn-sm">Solicitar</a>
+    </div>
+    <div id="boletos-abertos">
+      <div class="skeleton" style="height:14px;margin-bottom:10px;border-radius:4px;"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function carregar() {
+  try {
+    const d = await api.get('/api/v1/portal/resumo/');
+
+    // Métricas
+    const pend = d.financeiro.pagamentos_pendentes;
+    document.getElementById('metricas').innerHTML = `
+      <div class="metric-card gold">
+        <div class="metric-value">R$ ${parseFloat(d.empresa.mensalidade).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div class="metric-label">Mensalidade</div>
+        <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-value">R$ ${parseFloat(d.financeiro.total_pago).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+        <div class="metric-label">Total pago</div>
+        <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+      </div>
+      <div class="metric-card ${pend > 0 ? 'red' : 'blue'}">
+        <div class="metric-value">${pend}</div>
+        <div class="metric-label">Pagamentos pendentes</div>
+        <div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      </div>
+    `;
+
+    // Documentos recentes
+    const elDocs = document.getElementById('docs-recentes');
+    if (!d.documentos_recentes.length) {
+      elDocs.innerHTML = '<div class="empty-state" style="padding:16px 0"><p>Nenhum documento disponível.</p></div>';
+    } else {
+      const icone = { contrato:'📋', relatorio:'📊', outro:'📎' };
+      elDocs.innerHTML = d.documentos_recentes.map(doc => `
+        <a href="${doc.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);text-decoration:none;">
+          <span style="font-size:18px;">${icone[doc.tipo] || '📎'}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${doc.titulo}</div>
+            <div style="font-size:11px;color:var(--muted);">${doc.tipo_display} · ${formatarData(doc.criado_em)}</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);flex-shrink:0;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      `).join('');
+    }
+
+    // Boletos
+    const elBoletos = document.getElementById('boletos-abertos');
+    const corStatus = { pendente:'var(--gold)', em_analise:'var(--blue,#3b82f6)', enviado:'var(--green)', cancelado:'var(--muted)' };
+    if (!d.boletos_abertos.length) {
+      elBoletos.innerHTML = '<div class="empty-state" style="padding:16px 0"><p>Nenhuma solicitação em aberto.</p></div>';
+    } else {
+      elBoletos.innerHTML = d.boletos_abertos.map(b => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);">${b.referencia || 'Sem referência'}</div>
+            <div style="font-size:11px;color:var(--muted);">${formatarData(b.criado_em)}</div>
+          </div>
+          <span style="color:${corStatus[b.status]};font-size:11px;font-weight:600;">${b.status_display}</span>
+        </div>
+      `).join('');
+    }
+
+  } catch(e) {
+    toast('Erro ao carregar: ' + e.message, 'error');
+  }
+}
+carregar();
+</script>
+{% endblock %}

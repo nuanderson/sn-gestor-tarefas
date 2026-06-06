@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Post-its{% endblock %}
+{% block nav_postits %}active{% endblock %}
+{% block page_title %}Quadro de Post-its{% endblock %}
+{% block page_subtitle_text %}Suas anotações rápidas{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="modalAbrir('modal-novo-postit')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  Novo Post-it
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Abas: Meus / Equipe -->
+<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border);">
+  <button class="btn btn-ghost" id="aba-meus"
+    style="border-radius:var(--radius) var(--radius) 0 0;border-bottom:2px solid var(--gold);color:var(--gold);"
+    onclick="mostrarAba('meus')">
+    🔒 Meus Post-its <span id="count-meus" style="font-size:11px;opacity:.7;"></span>
+  </button>
+  <button class="btn btn-ghost" id="aba-equipe"
+    style="border-radius:var(--radius) var(--radius) 0 0;border-bottom:2px solid transparent;"
+    onclick="mostrarAba('equipe')">
+    👥 Equipe <span id="count-equipe" style="font-size:11px;opacity:.7;"></span>
+  </button>
+</div>
+
+<!-- Grade de post-its -->
+<div class="postit-grid" id="grid-meus"></div>
+<div class="postit-grid" id="grid-equipe" style="display:none;"></div>
+
+<!-- Modal novo post-it -->
+<div class="modal-overlay" id="modal-novo-postit">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-postit-titulo">Novo Post-it</div>
+      <button class="btn-icon" onclick="fecharModalPostit()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="postit-id">
+      <div class="form-group">
+        <label class="form-label">Anotação *</label>
+        <textarea class="form-control" id="postit-texto" rows="5" placeholder="O que você quer lembrar?"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Cor</label>
+          <select class="form-control" id="postit-cor">
+            <option value="amarelo">🟡 Amarelo</option>
+            <option value="verde">🟢 Verde</option>
+            <option value="azul">🔵 Azul</option>
+            <option value="rosa">🩷 Rosa</option>
+            <option value="roxo">🟣 Roxo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Visibilidade</label>
+          <select class="form-control" id="postit-visibilidade">
+            <option value="privado">🔒 Só eu vejo</option>
+            <option value="equipe">👥 Toda a equipe</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModalPostit()">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="btn-excluir-postit" style="display:none;margin-right:auto;" onclick="excluirPostit()">Excluir</button>
+      <button class="btn btn-primary" onclick="salvarPostit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let abaAtiva = 'meus';
+let editandoId = null;
+
+function mostrarAba(aba) {
+  abaAtiva = aba;
+  document.getElementById('grid-meus').style.display   = aba === 'meus'   ? 'grid' : 'none';
+  document.getElementById('grid-equipe').style.display = aba === 'equipe' ? 'grid' : 'none';
+
+  document.getElementById('aba-meus').style.borderBottomColor   = aba === 'meus'   ? 'var(--gold)' : 'transparent';
+  document.getElementById('aba-meus').style.color               = aba === 'meus'   ? 'var(--gold)' : '';
+  document.getElementById('aba-equipe').style.borderBottomColor = aba === 'equipe' ? 'var(--gold)' : 'transparent';
+  document.getElementById('aba-equipe').style.color             = aba === 'equipe' ? 'var(--gold)' : '';
+}
+
+async function carregarPostits() {
+  try {
+    const data = await api.get('/api/v1/postits/');
+    renderGrid('grid-meus',   data.meus);
+    renderGrid('grid-equipe', data.equipe);
+    document.getElementById('count-meus').textContent   = `(${data.meus.length})`;
+    document.getElementById('count-equipe').textContent = `(${data.equipe.length})`;
+  } catch(e) {
+    toast('Erro ao carregar post-its.', 'error');
+  }
+}
+
+const COR_CLASSE = { amarelo:'postit-amarelo', verde:'postit-verde', azul:'postit-azul', rosa:'postit-rosa', roxo:'postit-roxo' };
+
+function renderGrid(gridId, lista) {
+  const el = document.getElementById(gridId);
+  if (!lista.length) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <h3>Nenhuma anotação aqui ainda</h3>
+      <p>Clique em "Novo Post-it" para começar.</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = lista.map(p => `
+    <div class="postit-card ${COR_CLASSE[p.cor] || 'postit-amarelo'}"
+         onclick="${p.e_meu ? `editarPostit(${JSON.stringify(p).replace(/"/g,'&quot;')})` : ''}">
+      ${p.fixado ? '<div class="postit-pin">📌</div>' : ''}
+      <div class="postit-texto">${p.texto.replace(/\n/g,'<br>')}</div>
+      <div class="postit-footer">
+        <span>${p.visibilidade === 'equipe' ? '👥 Equipe' : '🔒 Privado'}</span>
+        <span>${p.e_meu ? 'Eu' : p.autor_nome.split(' ')[0]}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editarPostit(p) {
+  editandoId = p.id;
+  document.getElementById('modal-postit-titulo').textContent = 'Editar Post-it';
+  document.getElementById('postit-id').value = p.id;
+  document.getElementById('postit-texto').value = p.texto;
+  document.getElementById('postit-cor').value = p.cor;
+  document.getElementById('postit-visibilidade').value = p.visibilidade;
+  document.getElementById('btn-excluir-postit').style.display = 'inline-flex';
+  modalAbrir('modal-novo-postit');
+}
+
+function fecharModalPostit() {
+  editandoId = null;
+  document.getElementById('modal-postit-titulo').textContent = 'Novo Post-it';
+  document.getElementById('postit-id').value = '';
+  document.getElementById('postit-texto').value = '';
+  document.getElementById('postit-cor').value = 'amarelo';
+  document.getElementById('postit-visibilidade').value = 'privado';
+  document.getElementById('btn-excluir-postit').style.display = 'none';
+  modalFechar('modal-novo-postit');
+}
+
+async function salvarPostit() {
+  const texto = document.getElementById('postit-texto').value.trim();
+  if (!texto) { toast('Escreva algo no post-it.', 'error'); return; }
+
+  const body = {
+    texto,
+    cor:          document.getElementById('postit-cor').value,
+    visibilidade: document.getElementById('postit-visibilidade').value,
+  };
+
+  try {
+    if (editandoId) {
+      await api.put(`/api/v1/postits/${editandoId}/`, body);
+      toast('Post-it atualizado!', 'success');
+    } else {
+      await api.post('/api/v1/postits/', body);
+      toast('Post-it criado!', 'success');
+    }
+    fecharModalPostit();
+    carregarPostits();
+  } catch(e) {
+    toast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function excluirPostit() {
+  if (!editandoId) return;
+  if (!confirm('Remover este post-it?')) return;
+  try {
+    await api.delete(`/api/v1/postits/${editandoId}/`);
+    toast('Post-it removido.', 'success');
+    fecharModalPostit();
+    carregarPostits();
+  } catch(e) {
+    toast('Erro ao remover: ' + e.message, 'error');
+  }
+}
+
+carregarPostits();
+</script>
+{% endblock %}

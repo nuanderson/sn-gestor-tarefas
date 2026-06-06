@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Colaboradores{% endblock %}
+{% block nav_colaboradores %}active{% endblock %}
+{% block page_title %}Colaboradores{% endblock %}
+{% block page_subtitle_text %}Desempenho da equipe no mês{% endblock %}
+
+{% block header_actions %}
+<select id="sel-mes" class="form-control" style="width:auto;padding:6px 12px;font-size:12px;" onchange="carregar()">
+  <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+  <option value="3">Março</option><option value="4">Abril</option>
+  <option value="5">Maio</option><option value="6">Junho</option>
+  <option value="7">Julho</option><option value="8">Agosto</option>
+  <option value="9">Setembro</option><option value="10">Outubro</option>
+  <option value="11">Novembro</option><option value="12">Dezembro</option>
+</select>
+<select id="sel-ano" class="form-control" style="width:auto;padding:6px 12px;font-size:12px;" onchange="carregar()"></select>
+{% endblock %}
+
+{% block content %}
+<div id="lista-colaboradores" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;">
+  <div class="card skeleton" style="height:200px;"></div>
+  <div class="card skeleton" style="height:200px;"></div>
+  <div class="card skeleton" style="height:200px;"></div>
+</div>
+
+<!-- Modal definir / editar meta -->
+<div class="modal-overlay" id="modal-meta">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Meta do Mês</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="meta-modal-sub"></div>
+      </div>
+      <button class="btn-icon" onclick="fecharModalMeta()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="meta-id">
+      <input type="hidden" id="meta-colaborador-id">
+
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label class="form-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="margin-right:4px;vertical-align:middle;"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Meta de Tarefas
+          </label>
+          <input type="number" class="form-control" id="meta-tarefas" min="1" placeholder="Ex: 20">
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Tarefas a concluir no mês</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="margin-right:4px;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Meta de Horas
+          </label>
+          <input type="number" class="form-control" id="meta-horas" min="1" placeholder="Ex: 160">
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Horas de trabalho registradas</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Observação (opcional)</label>
+        <textarea class="form-control" id="meta-obs" rows="2" placeholder="Ex: Meta reduzida por férias na segunda quinzena"></textarea>
+      </div>
+
+      <div style="background:rgba(200,164,94,0.08);border:1px solid rgba(200,164,94,0.2);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);line-height:1.6;">
+        <strong style="color:var(--gold);">ℹ Como funciona</strong><br>
+        A meta aparece no dashboard individual do colaborador e no gráfico de gauge. Deixe um campo em branco para não definir meta naquele critério.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="btn-excluir-meta" style="margin-right:auto;display:none;" onclick="excluirMeta()">Remover Meta</button>
+      <button class="btn btn-ghost" onclick="fecharModalMeta()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarMeta()">Salvar Meta</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const mesesNome = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+const anoAtual = new Date().getFullYear();
+const selAno = document.getElementById('sel-ano');
+for (let a = anoAtual - 1; a <= anoAtual + 1; a++) {
+  const opt = document.createElement('option');
+  opt.value = a; opt.textContent = a;
+  if (a === anoAtual) opt.selected = true;
+  selAno.appendChild(opt);
+}
+document.getElementById('sel-mes').value = new Date().getMonth() + 1;
+
+async function carregar() {
+  const mes = document.getElementById('sel-mes').value;
+  const ano = document.getElementById('sel-ano').value;
+  try {
+    const d = await api.get('/api/v1/dashboard/colaboradores/', { mes, ano });
+    renderColaboradores(d.colaboradores, parseInt(mes), parseInt(ano));
+  } catch(e) {
+    toast('Erro ao carregar: ' + e.message, 'error');
+  }
+}
+
+function renderColaboradores(lista, mes, ano) {
+  const el = document.getElementById('lista-colaboradores');
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty-state"><p>Nenhum colaborador encontrado.</p></div>';
+    return;
+  }
+
+  el.innerHTML = lista.map(c => {
+    const pct_t = c.meta_tarefas ? Math.min(Math.round(c.tarefas_concluidas_mes / c.meta_tarefas * 100), 100) : null;
+    const pct_h = c.meta_horas   ? Math.min(Math.round(c.horas_registradas_mes  / c.meta_horas   * 100), 100) : null;
+    const temMeta = pct_t !== null || pct_h !== null;
+
+    const corPct = (p) => p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--gold)' : 'var(--red)';
+
+    return `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0;">${c.iniciais}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">${c.nome}</div>
+          <div style="font-size:11px;color:var(--muted);">${c.perfil}</div>
+        </div>
+        ${c.tarefas_atrasadas > 0
+          ? `<span style="background:rgba(239,68,68,.15);color:var(--red);font-size:11px;padding:2px 8px;border-radius:20px;">${c.tarefas_atrasadas} atrasada${c.tarefas_atrasadas>1?'s':''}</span>`
+          : ''}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;text-align:center;">
+        <div>
+          <div style="font-size:20px;font-weight:700;color:var(--gold);">${c.tarefas_concluidas_mes}</div>
+          <div style="font-size:10px;color:var(--muted);">Concluídas</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:700;color:var(--text);">${c.tarefas_em_aberto}</div>
+          <div style="font-size:10px;color:var(--muted);">Em aberto</div>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:700;color:var(--green);">${c.horas_registradas_mes}h</div>
+          <div style="font-size:10px;color:var(--muted);">Horas</div>
+        </div>
+      </div>
+
+      ${pct_t !== null ? `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:var(--muted);">Meta tarefas</span>
+          <span style="font-size:11px;font-weight:600;color:${corPct(pct_t)}">${c.tarefas_concluidas_mes}/${c.meta_tarefas} — ${pct_t}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct_t}%;background:${corPct(pct_t)}"></div></div>
+      </div>` : ''}
+
+      ${pct_h !== null ? `
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:var(--muted);">Meta horas</span>
+          <span style="font-size:11px;font-weight:600;color:${corPct(pct_h)}">${c.horas_registradas_mes}h/${c.meta_horas}h — ${pct_h}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct_h}%;background:${corPct(pct_h)}"></div></div>
+      </div>` : ''}
+
+      ${!temMeta ? `
+      <div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0;margin-bottom:8px;">
+        Sem meta definida para este mês
+      </div>` : ''}
+
+      <div style="padding-top:12px;border-top:1px solid var(--border);">
+        <button class="btn btn-ghost btn-sm" style="width:100%;"
+          onclick="abrirModalMeta(${c.id}, '${c.nome.replace(/'/g,"\\'")}', ${mes}, ${ano}, ${c.meta_tarefas || 'null'}, ${c.meta_horas || 'null'})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          ${temMeta ? 'Editar Meta' : 'Definir Meta'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Modal de Metas ─────────────────────────────────────────────
+let metaIdAtual = null;
+
+async function abrirModalMeta(colaboradorId, nome, mes, ano, metaTarefas, metaHoras) {
+  document.getElementById('meta-colaborador-id').value = colaboradorId;
+  document.getElementById('meta-modal-sub').textContent = `${nome} — ${mesesNome[mes]}/${ano}`;
+  document.getElementById('meta-tarefas').value = metaTarefas || '';
+  document.getElementById('meta-horas').value   = metaHoras   || '';
+  document.getElementById('meta-obs').value     = '';
+  metaIdAtual = null;
+
+  // Tenta carregar meta existente para pegar id e observação
+  try {
+    const data = await api.get('/api/v1/dashboard/metas/', {
+      colaborador_id: colaboradorId, mes, ano
+    });
+    const lista = data.results || data;
+    if (lista.length) {
+      const m = lista[0];
+      metaIdAtual = m.id;
+      document.getElementById('meta-id').value      = m.id;
+      document.getElementById('meta-tarefas').value = m.meta_tarefas || '';
+      document.getElementById('meta-horas').value   = m.meta_horas   || '';
+      document.getElementById('meta-obs').value     = m.observacao   || '';
+    }
+  } catch {}
+
+  document.getElementById('btn-excluir-meta').style.display = metaIdAtual ? 'inline-flex' : 'none';
+  modalAbrir('modal-meta');
+}
+
+function fecharModalMeta() {
+  modalFechar('modal-meta');
+  metaIdAtual = null;
+}
+
+async function salvarMeta() {
+  const colaboradorId = document.getElementById('meta-colaborador-id').value;
+  const mes = parseInt(document.getElementById('sel-mes').value);
+  const ano = parseInt(document.getElementById('sel-ano').value);
+  const metaTarefas = document.getElementById('meta-tarefas').value;
+  const metaHoras   = document.getElementById('meta-horas').value;
+  const obs         = document.getElementById('meta-obs').value.trim();
+
+  if (!metaTarefas && !metaHoras) {
+    toast('Informe ao menos uma meta (tarefas ou horas).', 'error');
+    return;
+  }
+
+  const body = {
+    colaborador:  parseInt(colaboradorId),
+    mes, ano,
+    meta_tarefas: metaTarefas ? parseInt(metaTarefas) : null,
+    meta_horas:   metaHoras   ? parseFloat(metaHoras)  : null,
+    observacao:   obs || '',
+  };
+
+  try {
+    if (metaIdAtual) {
+      await api.patch(`/api/v1/dashboard/metas/${metaIdAtual}/`, body);
+      toast('Meta atualizada!', 'success');
+    } else {
+      await api.post('/api/v1/dashboard/metas/', body);
+      toast('Meta definida!', 'success');
+    }
+    fecharModalMeta();
+    carregar();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+async function excluirMeta() {
+  if (!metaIdAtual) return;
+  if (!confirm('Remover esta meta? O colaborador ficará sem meta no mês.')) return;
+  try {
+    await api.delete(`/api/v1/dashboard/metas/${metaIdAtual}/`);
+    toast('Meta removida.', 'success');
+    fecharModalMeta();
+    carregar();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+carregar();
+</script>
+{% endblock %}

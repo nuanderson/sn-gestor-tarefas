@@ -1,0 +1,32 @@
+# ── Framework principal ────────────────────
+Django==4.2.16
+djangorestframework==3.15.2
+
+# ── Servidor WSGI para produção ────────────
+gunicorn==21.2.0
+
+# ── Banco de dados ─────────────────────────
+psycopg2-binary==2.9.9
+
+# ── Variáveis de ambiente ──────────────────
+python-decouple==3.8
+
+# ── CORS (frontend acessar a API) ──────────
+django-cors-headers==4.4.0
+
+# ── Imagens e arquivos ─────────────────────
+Pillow==10.4.0
+
+# ── Geração de PDF ─────────────────────────
+weasyprint==60.2
+pydyf==0.8.0
+
+# ── Filtros avançados na API ───────────────
+django-filter==24.3
+
+# ── Datas e fusos horários ─────────────────
+pytz==2024.1
+python-dateutil==2.9.0.post0
+
+# -- Requisicoes HTTP (integracao Conta Azul) --
+requests==2.32.3

@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block title %}Empresas{% endblock %}
+{% block nav_empresas %}active{% endblock %}
+{% block page_title %}Empresas{% endblock %}
+{% block page_subtitle_text %}Cadastro de clientes{% endblock %}
+
+{% block header_actions %}
+{% if user.is_gestor_ou_acima %}
+<button class="btn btn-primary btn-sm" onclick="modalAbrir('modal-nova-empresa')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  Nova Empresa
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="search-bar" style="margin-bottom:16px;">
+  <div class="search-input-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" class="search-input" id="busca" placeholder="Buscar empresa..." oninput="renderEmpresas()">
+  </div>
+  <select class="form-control" id="filtro-status" style="width:auto;" onchange="renderEmpresas()">
+    <option value="">Todas</option>
+    <option value="ativo">Ativas</option>
+    <option value="inativo">Inativas</option>
+  </select>
+</div>
+
+<div id="grid-empresas" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+
+<!-- Modal Nova Empresa -->
+<div class="modal-overlay" id="modal-nova-empresa">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Nova Empresa</div>
+      <button class="btn-icon" onclick="modalFechar('modal-nova-empresa')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Nome / Razão Social *</label>
+          <input type="text" class="form-control" id="ne-nome">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CNPJ</label>
+          <input type="text" class="form-control" id="ne-cnpj" placeholder="00.000.000/0000-00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mensalidade (R$)</label>
+          <input type="number" class="form-control" id="ne-mensalidade" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsável interno</label>
+          <select class="form-control" id="ne-responsavel"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de entrada</label>
+          <input type="date" class="form-control" id="ne-data-entrada">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Link de Documentos (Google Drive)</label>
+          <input type="url" class="form-control" id="ne-link-docs" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Observações</label>
+          <textarea class="form-control" id="ne-obs" rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-nova-empresa')">Cancelar</button>
+      <button class="btn btn-primary" onclick="criarEmpresa()">Criar Empresa</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let todasEmpresas = [];
+
+async function carregarEmpresas() {
+  try {
+    const data = await api.get('/api/v1/empresas/');
+    todasEmpresas = data.results || data;
+    renderEmpresas();
+  } catch { toast('Erro ao carregar empresas.', 'error'); }
+}
+
+function renderEmpresas() {
+  const busca  = document.getElementById('busca').value.toLowerCase();
+  const status = document.getElementById('filtro-status').value;
+
+  let lista = todasEmpresas;
+  if (busca)  lista = lista.filter(e => e.nome.toLowerCase().includes(busca) || (e.cnpj||'').includes(busca));
+  if (status) lista = lista.filter(e => e.status === status);
+
+  const el = document.getElementById('grid-empresas');
+
+  if (!lista.length) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <h3>Nenhuma empresa encontrada</h3><p>Ajuste os filtros ou cadastre uma nova.</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = lista.map(e => `
+    <a href="/empresas/${e.id}/" style="text-decoration:none;">
+      <div class="card" style="cursor:pointer;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+          <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--black);">
+            ${e.nome[0].toUpperCase()}
+          </div>
+          <span class="badge" style="background:${e.status==='ativo'?'rgba(46,204,113,.15)':'rgba(136,136,136,.1)'};color:${e.status==='ativo'?'var(--green)':'var(--muted)'};">${e.status==='ativo'?'Ativa':'Inativa'}</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px;">${e.nome}</div>
+        ${e.cnpj ? `<div style="font-size:11px;color:var(--muted);">${e.cnpj}</div>` : ''}
+        <div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <span style="font-size:11px;color:var(--muted);">${e.total_tarefas ?? 0} tarefa${e.total_tarefas !== 1 ? 's' : ''}</span>
+          ${e.mensalidade ? `<span style="font-size:12px;color:var(--gold);font-weight:600;">R$ ${parseFloat(e.mensalidade).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>` : ''}
+        </div>
+      </div>
+    </a>
+  `).join('');
+}
+
+async function carregarSelectResponsavel() {
+  try {
+    const users = await api.get('/api/v1/usuarios/');
+    const lista = users.results || users;
+    const sel = document.getElementById('ne-responsavel');
+    lista.forEach(u => sel.innerHTML += `<option value="${u.id}">${u.nome}</option>`);
+  } catch {}
+}
+
+async function criarEmpresa() {
+  const nome = document.getElementById('ne-nome').value.trim();
+  if (!nome) { toast('Nome é obrigatório.', 'error'); return; }
+
+  const body = {
+    nome,
+    cnpj:              document.getElementById('ne-cnpj').value || null,
+    mensalidade:       document.getElementById('ne-mensalidade').value || null,
+    responsavel_interno: document.getElementById('ne-responsavel').value || null,
+    data_entrada:      document.getElementById('ne-data-entrada').value || null,
+    link_documentos:   document.getElementById('ne-link-docs').value || null,
+    observacoes:       document.getElementById('ne-obs').value,
+  };
+
+  try {
+    const nova = await api.post('/api/v1/empresas/', body);
+    toast('Empresa criada!', 'success');
+    modalFechar('modal-nova-empresa');
+    window.location.href = `/empresas/${nova.id}/`;
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+carregarEmpresas();
+carregarSelectResponsavel();
+</script>
+{% endblock %}

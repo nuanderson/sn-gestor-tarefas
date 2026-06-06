@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Semanal — SN Gestor</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      background: #F4F1EB;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      color: #2C2C2C;
+    }
+    .wrapper {
+      max-width: 620px;
+      margin: 32px auto;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .header {
+      background: #1A1A2E;
+      padding: 24px 32px;
+    }
+    .header h1 { color: #C8A45E; font-size: 22px; margin: 0; letter-spacing: 1px; }
+    .header p  { color: #aaa; font-size: 11px; margin: 4px 0 0; }
+    .header .periodo {
+      margin-top: 12px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .body { padding: 28px 32px; }
+
+    h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #888;
+      border-bottom: 1px solid #E0D8CB;
+      padding-bottom: 6px;
+      margin: 24px 0 14px;
+    }
+    h2:first-of-type { margin-top: 0; }
+
+    /* ── Cards de números ── */
+    .cards {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .card {
+      flex: 1;
+      border: 1px solid #E0D8CB;
+      border-radius: 6px;
+      padding: 14px 10px;
+      text-align: center;
+    }
+    .card .num {
+      font-size: 26px;
+      font-weight: 700;
+      color: #1A1A2E;
+    }
+    .card .lbl {
+      font-size: 9px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 3px;
+    }
+    .num-green { color: #27AE60 !important; }
+    .num-red   { color: #C0392B !important; }
+    .num-gold  { color: #C8A45E !important; }
+
+    /* ── Tabela colaboradores ── */
+    .tabela-colab {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .tabela-colab th {
+      text-align: left;
+      padding: 6px 8px;
+      background: #F8F5EF;
+      font-size: 10px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid #E0D8CB;
+    }
+    .tabela-colab td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #F5F0E8;
+      color: #333;
+    }
+    .tabela-colab tr:last-child td { border-bottom: none; }
+
+    /* ── Tarefas vencendo ── */
+    .tarefa-item {
+      border-left: 3px solid #C8A45E;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: #FDFBF7;
+      border-radius: 0 4px 4px 0;
+      font-size: 12px;
+    }
+    .tarefa-item .t-titulo { font-weight: 600; color: #1A1A2E; margin-bottom: 3px; }
+    .tarefa-item .t-meta   { color: #777; font-size: 11px; }
+
+    .badge-urgente { color: #C0392B; font-weight: 700; }
+    .badge-alto    { color: #E67E22; }
+
+    .footer {
+      background: #F8F5EF;
+      border-top: 1px solid #E0D8CB;
+      padding: 16px 32px;
+      text-align: center;
+      font-size: 10px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <h1>SN Gestor</h1>
+    <p>Suzane Neves — Gestão Estratégica em Saúde</p>
+    <div class="periodo">
+      Relatório Semanal —
+      {{ inicio_semana_passada|date:"d/m" }} a {{ fim_semana_passada|date:"d/m/Y" }}
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- Resumo da semana passada -->
+    <h2>Resumo da semana</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="num num-green">{{ total_concluidas }}</div>
+        <div class="lbl">Concluídas</div>
+      </div>
+      <div class="card">
+        <div class="num num-red">{{ total_atrasadas }}</div>
+        <div class="lbl">Atrasadas em aberto</div>
+      </div>
+      <div class="card">
+        <div class="num num-gold">{{ horas_semana }}h</div>
+        <div class="lbl">Horas registradas</div>
+      </div>
+    </div>
+
+    <!-- Produtividade por colaborador -->
+    {% if por_colaborador %}
+    <h2>Horas por colaborador</h2>
+    <table class="tabela-colab">
+      <thead>
+        <tr>
+          <th>Colaborador</th>
+          <th>Horas registradas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in por_colaborador %}
+        <tr>
+          <td>{{ item.nome }}</td>
+          <td><strong>{{ item.horas }}h</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Tarefas que vencem esta semana -->
+    <h2>
+      Vence esta semana
+      ({{ inicio_semana_atual|date:"d/m" }} a {{ fim_semana_atual|date:"d/m/Y" }})
+      — {{ total_vencendo }} tarefa{{ total_vencendo|pluralize }}
+    </h2>
+
+    {% for t in vencendo_semana %}
+    <div class="tarefa-item">
+      <div class="t-titulo">{{ t.titulo }}</div>
+      <div class="t-meta">
+        {{ t.empresa.nome }}
+        &nbsp;·&nbsp; Prazo: {{ t.prazo|date:"d/m/Y" }}
+        &nbsp;·&nbsp;
+        {% if t.prioridade == 'urgent' %}
+          <span class="badge-urgente">Urgente</span>
+        {% elif t.prioridade == 'high' %}
+          <span class="badge-alto">Alta</span>
+        {% else %}
+          {{ t.get_prioridade_display }}
+        {% endif %}
+        {% if t.responsavel %}
+          &nbsp;·&nbsp; {{ t.responsavel.nome }}
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <p style="color:#aaa; font-size:12px; font-style:italic;">Nenhuma tarefa vence esta semana.</p>
+    {% endfor %}
+
+  </div>
+
+  <div class="footer">
+    Este é um relatório automático do SN Gestor, enviado toda segunda-feira. Não responda este e-mail.
+  </div>
+
+</div>
+</body>
+</html>

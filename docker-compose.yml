@@ -1,0 +1,96 @@
+version: '3.9'
+
+services:
+
+  # ── Banco de Dados ─────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: sn_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sn_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Aplicação Django ───────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sn_backend
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sn_network
+
+  # ── Agendador de Tarefas (cron) ───────────
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sn_scheduler
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo '0 8 * * * cd /app && python manage.py enviar_alertas_prazo >> /var/log/cron.log 2>&1' > /etc/crontabs/root &&
+        echo '0 8 * * 1 cd /app && python manage.py enviar_relatorio_semanal >> /var/log/cron.log 2>&1' >> /etc/crontabs/root &&
+        crond -f -l 2
+      "
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sn_network
+
+  # ── Proxy Reverso Nginx ────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: sn_nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - sn_network
+
+# ── Volumes ────────────────────────────────
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+
+# ── Rede interna ───────────────────────────
+networks:
+  sn_network:
+    driver: bridge

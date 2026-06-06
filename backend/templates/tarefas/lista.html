@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% block title %}Tarefas{% endblock %}
+{% block nav_tarefas %}active{% endblock %}
+{% block page_title %}Tarefas{% endblock %}
+{% block page_subtitle_text %}Gerencie e acompanhe todas as suas tarefas{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="modalAbrir('modal-nova-tarefa')">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  Nova Tarefa
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:16px;padding:14px 20px;">
+  <div class="search-bar" style="margin-bottom:0;">
+    <div class="search-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <label for="filtro-busca" class="visually-hidden">Buscar tarefas</label>
+      <input type="text" class="search-input" id="filtro-busca" placeholder="Buscar por título..." oninput="filtrar()" aria-label="Buscar tarefas por título">
+    </div>
+    <select class="form-control" id="filtro-status" style="width:auto;" onchange="filtrar()">
+      <option value="">Todos os status</option>
+      <option value="pending">Pendente</option>
+      <option value="progress">Em Andamento</option>
+      <option value="done">Concluída</option>
+      <option value="late">Atrasada</option>
+    </select>
+    <select class="form-control" id="filtro-prioridade" style="width:auto;" onchange="filtrar()">
+      <option value="">Todas as prioridades</option>
+      <option value="urgent">Urgente</option>
+      <option value="high">Alta</option>
+      <option value="medium">Média</option>
+      <option value="low">Baixa</option>
+    </select>
+    <select class="form-control" id="filtro-empresa" style="width:auto;" onchange="filtrar()">
+      <option value="">Todas as empresas</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="limparFiltros()">Limpar</button>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card">
+  <div id="tabela-tarefas">
+    <!-- Skeleton -->
+    <div style="padding:20px;">
+      {% for i in "12345" %}
+      <div class="skeleton" style="height:16px;margin-bottom:14px;border-radius:4px;width:{% cycle '100%' '85%' '92%' '78%' '95%' %};"></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="paginacao" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 0;border-top:1px solid var(--border);margin-top:4px;"></div>
+</div>
+
+<!-- Modal Nova Tarefa -->
+<div class="modal-overlay" id="modal-nova-tarefa">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">Nova Tarefa</div>
+      <button class="btn-icon" onclick="modalFechar('modal-nova-tarefa')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="nt-titulo">Título *</label>
+          <input type="text" class="form-control" id="nt-titulo" placeholder="Descreva a tarefa...">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="nt-empresa">Empresa *</label>
+          <select class="form-control" id="nt-empresa"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="nt-responsavel">Responsável</label>
+          <select class="form-control" id="nt-responsavel"><option value="">Selecione...</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="nt-prazo">Prazo</label>
+          <input type="date" class="form-control" id="nt-prazo">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="nt-prioridade">Prioridade</label>
+          <select class="form-control" id="nt-prioridade">
+            <option value="medium">Média</option>
+            <option value="low">Baixa</option>
+            <option value="high">Alta</option>
+            <option value="urgent">Urgente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="nt-categoria">Categoria</label>
+          <select class="form-control" id="nt-categoria">
+            <option value="">Sem categoria</option>
+            <option value="fiscal">Fiscal</option>
+            <option value="financeiro">Financeiro</option>
+            <option value="contabil">Contábil</option>
+            <option value="folha">Folha de Pagamento</option>
+            <option value="juridico">Jurídico</option>
+            <option value="outros">Outros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="nt-recorrencia">Recorrência</label>
+          <select class="form-control" id="nt-recorrencia">
+            <option value="none">Sem recorrência</option>
+            <option value="weekdays">Dias Úteis</option>
+            <option value="daily">Diária</option>
+            <option value="weekly">Semanal</option>
+            <option value="biweekly">Quinzenal</option>
+            <option value="monthly">Mensal</option>
+            <option value="yearly">Anual</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="nt-observacoes">Observações</label>
+          <textarea class="form-control" id="nt-observacoes" rows="3" placeholder="Detalhes adicionais..."></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="nt-link">Link do Documento (Google Drive)</label>
+          <input type="url" class="form-control" id="nt-link" placeholder="https://drive.google.com/...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-nova-tarefa')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-criar-tarefa" onclick="criarTarefa()">Criar Tarefa</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let todasTarefas = [];
+let paginaAtual = 1;
+const POR_PAGINA = 20;
+
+async function carregarTarefas() {
+  try {
+    const params = {};
+    const status = document.getElementById('filtro-status').value;
+    const prio   = document.getElementById('filtro-prioridade').value;
+    const emp    = document.getElementById('filtro-empresa').value;
+    if (status) params.status = status;
+    if (prio)   params.prioridade = prio;
+    if (emp)    params.empresa = emp;
+
+    const data = await api.get('/api/v1/tarefas/', params);
+    todasTarefas = data.results || data;
+    renderTabela();
+  } catch(e) {
+    toast('Erro ao carregar tarefas.', 'error');
+  }
+}
+
+function renderTabela() {
+  const busca = document.getElementById('filtro-busca').value.toLowerCase();
+  let lista = todasTarefas;
+
+  if (busca) {
+    lista = lista.filter(t => t.titulo.toLowerCase().includes(busca));
+  }
+
+  const total = lista.length;
+  const inicio = (paginaAtual - 1) * POR_PAGINA;
+  const pagina = lista.slice(inicio, inicio + POR_PAGINA);
+
+  const el = document.getElementById('tabela-tarefas');
+
+  if (!pagina.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+        </svg>
+        <h3>Nenhuma tarefa encontrada</h3>
+        <p>Ajuste os filtros ou crie uma nova tarefa.</p>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <table class="sn-table">
+      <thead>
+        <tr>
+          <th>Tarefa</th>
+          <th>Empresa</th>
+          <th>Responsável</th>
+          <th>Prazo</th>
+          <th>Prioridade</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pagina.map(t => `
+          <tr onclick="window.location='/tarefas/${t.id}/'" style="cursor:pointer;">
+            <td>
+              <div style="font-weight:600;color:var(--white);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.titulo}</div>
+              ${t.categoria ? `<div style="font-size:11px;color:var(--muted);">${t.categoria}</div>` : ''}
+            </td>
+            <td style="color:var(--muted);font-size:12px;">${t.empresa_nome || '—'}</td>
+            <td>
+              ${t.responsavel_nome ? `
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="avatar avatar-sm">${initiais(t.responsavel_nome)}</div>
+                  <span style="font-size:12px;">${t.responsavel_nome.split(' ')[0]}</span>
+                </div>` : '<span style="color:var(--muted);font-size:12px;">—</span>'}
+            </td>
+            <td style="font-size:12px;color:${t.esta_atrasada ? 'var(--red)' : 'var(--muted)'};">${formatarData(t.prazo)}</td>
+            <td><span class="prio-${t.prioridade}" style="font-size:12px;">${{'urgent':'Urgente','high':'Alta','medium':'Média','low':'Baixa'}[t.prioridade]}</span></td>
+            <td>${badgeStatus(t.status)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+  // Paginação
+  const totalPag = Math.ceil(total / POR_PAGINA);
+  document.getElementById('paginacao').innerHTML = `
+    <span style="font-size:12px;color:var(--muted);">${total} tarefa${total !== 1 ? 's' : ''}</span>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="irPagina(${paginaAtual-1})" ${paginaAtual<=1?'disabled':''}>← Anterior</button>
+      <span style="font-size:12px;color:var(--muted);padding:5px 8px;">${paginaAtual} / ${totalPag}</span>
+      <button class="btn btn-ghost btn-sm" onclick="irPagina(${paginaAtual+1})" ${paginaAtual>=totalPag?'disabled':''}>Próxima →</button>
+    </div>`;
+}
+
+function irPagina(p) {
+  paginaAtual = p;
+  renderTabela();
+  window.scrollTo(0, 0);
+}
+
+function filtrar() {
+  paginaAtual = 1;
+  carregarTarefas();
+}
+
+function limparFiltros() {
+  ['filtro-busca','filtro-status','filtro-prioridade','filtro-empresa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  filtrar();
+}
+
+async function carregarSelects() {
+  try {
+    const [emps, users] = await Promise.all([
+      api.get('/api/v1/empresas/'),
+      api.get('/api/v1/usuarios/'),
+    ]);
+
+    const listaEmps = emps.results || emps;
+    const listaUsers = users.results || users;
+
+    const selEmp   = document.getElementById('filtro-empresa');
+    const ntEmp    = document.getElementById('nt-empresa');
+    const ntResp   = document.getElementById('nt-responsavel');
+
+    listaEmps.forEach(e => {
+      selEmp.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+      ntEmp.innerHTML  += `<option value="${e.id}">${e.nome}</option>`;
+    });
+
+    listaUsers.forEach(u => {
+      ntResp.innerHTML += `<option value="${u.id}">${u.nome}</option>`;
+    });
+  } catch {}
+}
+
+async function criarTarefa() {
+  const titulo = document.getElementById('nt-titulo').value.trim();
+  const empresa = document.getElementById('nt-empresa').value;
+  if (!titulo || !empresa) {
+    toast('Título e empresa são obrigatórios.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-criar-tarefa');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+
+  const body = {
+    titulo,
+    empresa,
+    responsavel: document.getElementById('nt-responsavel').value || null,
+    prazo:       document.getElementById('nt-prazo').value || null,
+    prioridade:  document.getElementById('nt-prioridade').value,
+    categoria:   document.getElementById('nt-categoria').value,
+    recorrencia: document.getElementById('nt-recorrencia').value,
+    observacoes: document.getElementById('nt-observacoes').value,
+    link_documento: document.getElementById('nt-link').value,
+  };
+
+  try {
+    const nova = await api.post('/api/v1/tarefas/', body);
+    toast('Tarefa criada com sucesso!', 'success');
+    modalFechar('modal-nova-tarefa');
+    window.location.href = `/tarefas/${nova.id}/`;
+  } catch(e) {
+    toast('Erro ao criar tarefa: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Criar Tarefa';
+  }
+}
+
+// Inicializa
+carregarSelects();
+carregarTarefas();
+</script>
+{% endblock %}

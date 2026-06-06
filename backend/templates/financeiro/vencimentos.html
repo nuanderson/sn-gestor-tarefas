@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% block title %}Vencimentos{% endblock %}
+{% block nav_financeiro %}active{% endblock %}
+{% block page_title %}Vencimentos{% endblock %}
+{% block page_subtitle_text %}Contas a pagar e a receber dos clientes — via Conta Azul{% endblock %}
+
+{% block header_actions %}
+{% if user.is_gestor_ou_acima %}
+<button class="btn btn-ghost btn-sm" onclick="modalAbrir('modal-sync')" id="btn-sync">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+    <polyline points="23 4 23 10 17 10"/>
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+  </svg>
+  Sincronizar
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- Cards de resumo -->
+<div class="metric-grid" id="cards-resumo" style="margin-bottom:24px;">
+  <div class="metric-card red">
+    <div class="metric-label">Vencido</div>
+    <div class="metric-value" id="total-vencido">—</div>
+    <div class="metric-sub" id="qtd-vencido">— contas</div>
+  </div>
+  <div class="metric-card gold">
+    <div class="metric-label">Vence em 7 dias</div>
+    <div class="metric-value" id="total-7dias">—</div>
+    <div class="metric-sub" id="qtd-7dias">— contas</div>
+  </div>
+  <div class="metric-card blue">
+    <div class="metric-label">Vence em 30 dias</div>
+    <div class="metric-value" id="total-30dias">—</div>
+    <div class="metric-sub" id="qtd-30dias">— contas</div>
+  </div>
+  <div class="metric-card green">
+    <div class="metric-label">Pagos (período)</div>
+    <div class="metric-value" id="total-pago">—</div>
+    <div class="metric-sub" id="qtd-pago">— contas</div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom:16px;padding:14px 20px;">
+  <div class="search-bar" style="margin-bottom:0;flex-wrap:wrap;gap:8px;">
+    <div class="search-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="search-input" id="filtro-busca" placeholder="Buscar descrição ou fornecedor..." oninput="renderTabela()" aria-label="Buscar">
+    </div>
+    <select class="form-control" id="filtro-empresa" style="width:auto;" onchange="renderTabela()">
+      <option value="">Todas as empresas</option>
+    </select>
+    <select class="form-control" id="filtro-tipo" style="width:auto;" onchange="renderTabela()">
+      <option value="pagar">A Pagar</option>
+      <option value="receber">A Receber</option>
+      <option value="">Todos</option>
+    </select>
+    <select class="form-control" id="filtro-status" style="width:auto;" onchange="renderTabela()">
+      <option value="">Todos os status</option>
+      <option value="pendente">Pendente</option>
+      <option value="atrasado">Atrasado</option>
+      <option value="pago">Pago</option>
+      <option value="cancelado">Cancelado</option>
+    </select>
+    <select class="form-control" id="filtro-periodo" style="width:auto;" onchange="renderTabela()">
+      <option value="">Todos os períodos</option>
+      <option value="vencido">Vencidos</option>
+      <option value="7">Próximos 7 dias</option>
+      <option value="30">Próximos 30 dias</option>
+      <option value="90">Próximos 90 dias</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="limparFiltros()">Limpar</button>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card">
+  <div id="tabela-wrap">
+    <div style="padding:20px;">
+      {% for i in "12345" %}
+      <div class="skeleton" style="height:16px;margin-bottom:14px;border-radius:4px;width:{% cycle '100%' '85%' '92%' '78%' '95%' %};"></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="rodape-tabela" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 0;border-top:1px solid var(--border);margin-top:4px;font-size:12px;color:var(--muted);"></div>
+</div>
+
+<!-- Modal Sincronizar -->
+<div class="modal-overlay" id="modal-sync">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Sincronizar Conta Azul</div>
+      <button class="btn-icon" onclick="modalFechar('modal-sync')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Empresa</label>
+        <select class="form-control" id="sync-empresa">
+          <option value="">Selecione a empresa...</option>
+        </select>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-top:8px;">
+        Busca as contas a pagar e a receber dos últimos 30 dias e próximos 90 dias.
+        Novas contas a pagar geram tarefas automaticamente.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="modalFechar('modal-sync')">Cancelar</button>
+      <button class="btn btn-primary" onclick="executarSync()" id="btn-sync-exec">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Sincronizar
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const hoje = new Date(); hoje.setHours(0,0,0,0);
+let todosVencimentos = [];
+let toastTimeout;
+
+// ── Utilitários ──────────────────────────────────────────
+
+function fmt(valor) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+}
+
+function fmtData(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function diasAte(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return Math.round((d - hoje) / 86400000);
+}
+
+function statusBadge(status, dataVenc) {
+  const map = {
+    pendente:  ['badge-warning', 'Pendente'],
+    atrasado:  ['badge-danger',  'Atrasado'],
+    pago:      ['badge-success', 'Pago'],
+    cancelado: ['badge-default', 'Cancelado'],
+  };
+  // Recalcula como atrasado se a data já passou mas status ainda é pendente
+  if (status === 'pendente' && dataVenc && diasAte(dataVenc) < 0) {
+    return '<span class="badge badge-danger">Atrasado</span>';
+  }
+  const [cls, txt] = map[status] || ['badge-default', status];
+  return `<span class="badge ${cls}">${txt}</span>`;
+}
+
+function urgenciaBadge(dataVenc, status) {
+  if (status === 'pago' || status === 'cancelado') return '';
+  const dias = diasAte(dataVenc);
+  if (dias < 0)  return '<span class="badge badge-danger" title="Vencido">Vencido</span>';
+  if (dias === 0) return '<span class="badge badge-danger" title="Vence hoje">Hoje</span>';
+  if (dias <= 3) return `<span class="badge badge-danger" title="${dias}d">${dias}d</span>`;
+  if (dias <= 7) return `<span class="badge badge-warning" title="${dias}d">${dias}d</span>`;
+  return '';
+}
+
+function toast(msg, tipo = 'success') {
+  clearTimeout(toastTimeout);
+  let el = document.getElementById('toast-global');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast-global';
+    el.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.background = tipo === 'success' ? 'var(--success)' : tipo === 'error' ? 'var(--danger)' : '#555';
+  el.style.color = '#fff';
+  el.style.opacity = '1';
+  toastTimeout = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+// ── Carregamento de dados ─────────────────────────────────
+
+async function carregarEmpresas() {
+  const res = await fetch('/api/v1/empresas/');
+  const data = await res.json();
+  const empresas = data.results || data;
+  const selFiltro = document.getElementById('filtro-empresa');
+  const selSync   = document.getElementById('sync-empresa');
+  empresas.forEach(e => {
+    selFiltro.insertAdjacentHTML('beforeend', `<option value="${e.id}">${e.nome}</option>`);
+    selSync.insertAdjacentHTML('beforeend',   `<option value="${e.id}">${e.nome}</option>`);
+  });
+}
+
+async function carregarVencimentos() {
+  const res = await fetch('/api/v1/contaazul/vencimentos/');
+  if (!res.ok) { document.getElementById('tabela-wrap').innerHTML = '<p style="padding:20px;color:var(--muted)">Nenhum dado disponível.</p>'; return; }
+  todosVencimentos = await res.json();
+  atualizarCards();
+  renderTabela();
+}
+
+// ── Cards de resumo ───────────────────────────────────────
+
+function atualizarCards() {
+  const pagares = todosVencimentos.filter(v => v.tipo === 'pagar');
+
+  const vencidos  = pagares.filter(v => v.status !== 'pago' && v.status !== 'cancelado' && diasAte(v.data_vencimento) < 0);
+  const prox7     = pagares.filter(v => v.status !== 'pago' && v.status !== 'cancelado' && diasAte(v.data_vencimento) >= 0 && diasAte(v.data_vencimento) <= 7);
+  const prox30    = pagares.filter(v => v.status !== 'pago' && v.status !== 'cancelado' && diasAte(v.data_vencimento) >= 0 && diasAte(v.data_vencimento) <= 30);
+  const pagos     = pagares.filter(v => v.status === 'pago');
+
+  const soma = arr => arr.reduce((s, v) => s + parseFloat(v.valor), 0);
+
+  document.getElementById('total-vencido').textContent  = fmt(soma(vencidos));
+  document.getElementById('qtd-vencido').textContent    = `${vencidos.length} conta${vencidos.length !== 1 ? 's' : ''}`;
+  document.getElementById('total-7dias').textContent    = fmt(soma(prox7));
+  document.getElementById('qtd-7dias').textContent      = `${prox7.length} conta${prox7.length !== 1 ? 's' : ''}`;
+  document.getElementById('total-30dias').textContent   = fmt(soma(prox30));
+  document.getElementById('qtd-30dias').textContent     = `${prox30.length} conta${prox30.length !== 1 ? 's' : ''}`;
+  document.getElementById('total-pago').textContent     = fmt(soma(pagos));
+  document.getElementById('qtd-pago').textContent       = `${pagos.length} conta${pagos.length !== 1 ? 's' : ''}`;
+}
+
+// ── Tabela ────────────────────────────────────────────────
+
+function filtrar(vencimentos) {
+  const busca   = document.getElementById('filtro-busca').value.toLowerCase();
+  const empresa = document.getElementById('filtro-empresa').value;
+  const tipo    = document.getElementById('filtro-tipo').value;
+  const status  = document.getElementById('filtro-status').value;
+  const periodo = document.getElementById('filtro-periodo').value;
+
+  return vencimentos.filter(v => {
+    if (busca   && !v.descricao.toLowerCase().includes(busca) && !v.pessoa_nome.toLowerCase().includes(busca)) return false;
+    if (empresa && String(v.empresa) !== empresa) return false;
+    if (tipo    && v.tipo !== tipo) return false;
+    if (status  && v.status !== status) return false;
+    if (periodo) {
+      const dias = diasAte(v.data_vencimento);
+      if (periodo === 'vencido' && dias >= 0) return false;
+      if (periodo !== 'vencido' && (dias < 0 || dias > parseInt(periodo))) return false;
+    }
+    return true;
+  });
+}
+
+function renderTabela() {
+  const dados = filtrar(todosVencimentos);
+  const wrap  = document.getElementById('tabela-wrap');
+  const rodape = document.getElementById('rodape-tabela');
+
+  if (!dados.length) {
+    wrap.innerHTML = '<p style="padding:24px;text-align:center;color:var(--muted);">Nenhum vencimento encontrado.</p>';
+    rodape.textContent = '';
+    return;
+  }
+
+  const linhas = dados.map(v => {
+    const tarefaLink = v.tarefa_id
+      ? `<a href="/tarefas/${v.tarefa_id}/" class="btn btn-ghost btn-sm" title="Ver tarefa" style="padding:2px 8px;">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+         </a>`
+      : '<span style="color:var(--muted);font-size:11px;">—</span>';
+
+    return `<tr>
+      <td style="font-weight:500;">${v.empresa_nome}</td>
+      <td>${v.descricao}</td>
+      <td style="color:var(--muted);font-size:12px;">${v.pessoa_nome || '—'}</td>
+      <td style="text-align:right;font-weight:600;">${fmt(v.valor)}</td>
+      <td style="white-space:nowrap;">${fmtData(v.data_vencimento)} ${urgenciaBadge(v.data_vencimento, v.status)}</td>
+      <td>${statusBadge(v.status, v.data_vencimento)}</td>
+      <td style="text-align:center;">${tarefaLink}</td>
+    </tr>`;
+  }).join('');
+
+  const soma = dados.reduce((s, v) => s + parseFloat(v.valor), 0);
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Descrição</th>
+            <th>Fornecedor / Cliente</th>
+            <th style="text-align:right;">Valor</th>
+            <th>Vencimento</th>
+            <th>Status</th>
+            <th style="text-align:center;">Tarefa</th>
+          </tr>
+        </thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>`;
+
+  rodape.innerHTML = `<span>${dados.length} registro${dados.length !== 1 ? 's' : ''}</span><span style="font-weight:600;">Total: ${fmt(soma)}</span>`;
+}
+
+function limparFiltros() {
+  ['filtro-busca','filtro-empresa','filtro-tipo','filtro-status','filtro-periodo'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = id === 'filtro-tipo' ? 'pagar' : '';
+  });
+  renderTabela();
+}
+
+// ── Sync ──────────────────────────────────────────────────
+
+async function executarSync() {
+  const empresaId = document.getElementById('sync-empresa').value;
+  if (!empresaId) { toast('Selecione uma empresa.', 'warn'); return; }
+
+  const btn = document.getElementById('btn-sync-exec');
+  btn.disabled = true;
+  btn.textContent = 'Sincronizando...';
+
+  try {
+    const res = await fetch(`/api/v1/contaazul/sync/${empresaId}/`, { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.erro || 'Erro desconhecido');
+    toast(`Sync OK — ${data.criados} novo(s), ${data.atualizados} atualizado(s)`);
+    modalFechar('modal-sync');
+    await carregarVencimentos();
+  } catch(e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Sincronizar';
+  }
+}
+
+function getCsrf() {
+  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+// ── Init ──────────────────────────────────────────────────
+
+(async () => {
+  await carregarEmpresas();
+  await carregarVencimentos();
+})();
+</script>
+{% endblock %}
