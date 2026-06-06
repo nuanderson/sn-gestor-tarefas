@@ -134,7 +134,7 @@ class TarefaSerializer(serializers.ModelSerializer):
             'responsavel', 'responsavel_nome',
             'prazo_tipo', 'prazo_tipo_display', 'prazo', 'prazo_dias',
             'prioridade', 'prioridade_display',
-            'recorrencia', 'recorrencia_display',
+            'recorrencia', 'recorrencia_display', 'recorrencia_fim',
             'categoria', 'categoria_display',
             'status', 'status_display',
             'observacoes', 'link_documento',
@@ -179,14 +179,19 @@ class TarefaCriarSerializer(TarefaSerializer):
     """Criação — registra histórico automaticamente."""
 
     def create(self, validated_data):
-        tags = validated_data.pop('tags', [])
+        from datetime import date, timedelta
+        from .utils import proximo_prazo
+
+        tags    = validated_data.pop('tags', [])
         request = self.context.get('request')
         validated_data['criado_por'] = request.user if request else None
 
         # Tarefas em dias → calcula prazo
         if validated_data.get('prazo_tipo') == 'days' and validated_data.get('prazo_dias'):
-            from datetime import date, timedelta
             validated_data['prazo'] = date.today() + timedelta(days=validated_data['prazo_dias'])
+
+        recorrencia_fim = validated_data.get('recorrencia_fim')
+        recorrencia     = validated_data.get('recorrencia', 'none')
 
         tarefa = Tarefa.objects.create(**validated_data)
         if tags:
@@ -198,6 +203,40 @@ class TarefaCriarSerializer(TarefaSerializer):
             acao='criou',
             detalhe=f'Tarefa criada — prazo: {tarefa.prazo or "sem prazo"}',
         )
+
+        # Gera todas as ocorrências antecipadamente se recorrencia_fim foi informado
+        if recorrencia and recorrencia != 'none' and recorrencia_fim and tarefa.prazo:
+            prazo_atual = tarefa.prazo
+            usuario     = request.user if request else None
+            while True:
+                proximo = proximo_prazo(prazo_atual, recorrencia)
+                if not proximo or proximo > recorrencia_fim:
+                    break
+                ocorrencia = Tarefa.objects.create(
+                    titulo         = tarefa.titulo,
+                    empresa        = tarefa.empresa,
+                    responsavel    = tarefa.responsavel,
+                    prazo_tipo     = tarefa.prazo_tipo,
+                    prazo          = proximo,
+                    prazo_dias     = tarefa.prazo_dias,
+                    prioridade     = tarefa.prioridade,
+                    recorrencia    = 'none',   # não gera mais automaticamente
+                    recorrencia_fim= None,
+                    categoria      = tarefa.categoria,
+                    observacoes    = tarefa.observacoes,
+                    link_documento = tarefa.link_documento,
+                    status         = 'pending',
+                    tarefa_origem  = tarefa,
+                    criado_por     = usuario,
+                )
+                if tags:
+                    ocorrencia.tags.set(tags)
+                HistoricoTarefa.objects.create(
+                    tarefa=ocorrencia, usuario=usuario, acao='criou',
+                    detalhe=f'Gerada por recorrência de #{tarefa.id}',
+                )
+                prazo_atual = proximo
+
         return tarefa
 
 

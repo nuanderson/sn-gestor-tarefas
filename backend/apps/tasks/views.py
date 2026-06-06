@@ -123,8 +123,10 @@ class TarefaViewSet(viewsets.ModelViewSet):
                             f'Concluída em {tarefa.concluida_em.strftime("%d/%m/%Y %H:%M")}')
 
         # Cria próxima ocorrência se recorrente
+        # — não cria se já foram pré-geradas via recorrencia_fim
         proxima = None
-        if tarefa.recorrencia != 'none':
+        ja_pre_geradas = tarefa.recorrencias_geradas.filter(status='pending').exists()
+        if tarefa.recorrencia != 'none' and not ja_pre_geradas and not tarefa.recorrencia_fim:
             prazo_base = tarefa.prazo or date.today()
             novo_prazo = proximo_prazo(prazo_base, tarefa.recorrencia)
             if novo_prazo:

@@ -118,6 +118,10 @@ class Tarefa(models.Model):
     )
 
     # ── Recorrência ─────────────────────────────
+    recorrencia_fim = models.DateField(
+        'Repetir até', null=True, blank=True,
+        help_text='Se informado, todas as ocorrências são criadas de uma vez até esta data.',
+    )
     tarefa_origem = models.ForeignKey(
         'self', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='recorrencias_geradas',
