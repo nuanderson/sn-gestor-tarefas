@@ -66,10 +66,16 @@ graph TD
 
 | Ação | admin | manager | analyst | assistant | client |
 |------|:-----:|:-------:|:-------:|:---------:|:------:|
-| Listar empresas | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Listar todas as empresas | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Ver empresas designadas | ✅ | ✅ | ✅¹ | ✅¹ | ❌ |
 | Criar / Editar empresa | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Ver pagamentos | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Vincular colaboradores à empresa | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Ver pagamentos | ✅ | ✅ | ✅¹ | ✅¹ | ❌ |
 | Registrar pagamento | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Ver vencimentos ContaAzul | ✅ | ✅ | ✅¹ | ✅¹ | ❌ |
+| Conectar / Sincronizar ContaAzul | ✅ | ✅ | ❌ | ❌ | ❌ |
+
+> ¹ Analistas e assistentes veem **apenas** os dados das empresas às quais foram designados como colaboradores.
 
 ### Dashboard
 

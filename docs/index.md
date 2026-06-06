@@ -13,7 +13,7 @@ aliases:
 Sistema de gestão de tarefas BPO desenvolvido para a **Suzane Neves Gestão Estratégica em Saúde**.
 
 > [!info] Versão
-> SN Gestor v2.0 · Django 4.2 · PostgreSQL 15 · Docker
+> SN Gestor v3.0 · Django 4.2 · PostgreSQL 15 · Docker · AWS EC2 · HTTPS
 
 ## Navegação
 
@@ -23,9 +23,9 @@ Sistema de gestão de tarefas BPO desenvolvido para a **Suzane Neves Gestão Est
 | [[modelos-de-dados]] | Entidades, campos e relacionamentos (diagrama ER) |
 | [[api-referencia]] | Todos os endpoints REST com métodos e permissões |
 | [[permissoes]] | Perfis de usuário e matriz de controle de acesso |
-| [[fluxos]] | Fluxos de negócio com diagramas (tarefas, timer, portal) |
-| [[deploy]] | Infraestrutura Docker, variáveis de ambiente e deploy |
-| [[modulos]] | Detalhamento de cada app Django |
+| [[fluxos]] | Fluxos de negócio com diagramas (tarefas, timer, portal, ContaAzul) |
+| [[deploy]] | Infraestrutura Docker, AWS, HTTPS e variáveis de ambiente |
+| [[modulos]] | Detalhamento de cada app Django incluindo ContaAzul |
 
 ## Visão Geral Rápida
 
@@ -38,8 +38,9 @@ Scheduler → Cron → Django management commands
 **Módulos principais:**
 
 - `accounts` — Autenticação e usuários (5 perfis)
-- `tasks` — Tarefas, checklist, comentários, timer, histórico
-- `companies` — Empresas clientes e pagamentos
+- `tasks` — Tarefas, checklist, comentários, timer, histórico, recorrência com data final
+- `companies` — Empresas clientes, pagamentos e colaboradores por empresa
+- `contaazul` — Integração OAuth 2.0 com ContaAzul, sync de vencimentos
 - `dashboard` — Painéis gerenciais e metas mensais
 - `portal` — Portal exclusivo para clientes
 - `postits` — Quadro de recados interno

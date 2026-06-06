@@ -44,28 +44,76 @@ Cada app Django tem responsabilidade única. O módulo `tasks` é o núcleo; os 
 | `utils.py` | `proximo_prazo()` — calcula data da próxima ocorrência por tipo de recorrência |
 
 **Lógicas complexas:**
-- **Recorrência:** ao concluir, `proximo_prazo()` calcula a data da próxima tarefa e ela é criada automaticamente com os mesmos metadados
-- **Dependências:** `concluir` valida o grafo de `TarefaDependencia` antes de permitir a conclusão
-- **Timer:** duração líquida descontando pausas; acumulada em `tempo_total_minutos`
-- **Histórico:** toda mutação relevante cria um `HistoricoTarefa` (audit trail imutável)
+- **Recorrência com data final:** ao criar com `recorrencia_fim`, o `TarefaCriarSerializer` gera todas as ocorrências de uma vez usando `proximo_prazo()` em loop. Cada ocorrência gerada recebe `recorrencia='none'` para não disparar nova geração.
+- **Recorrência individual (legado):** se `recorrencia_fim` não for informado, o comportamento original persiste — ao concluir, a próxima ocorrência é criada automaticamente.
+- **Filtro por empresa:** analistas e assistentes veem apenas tarefas das empresas onde são colaboradores ou responsáveis.
+- **Dependências:** `concluir` valida o grafo de `TarefaDependencia` antes de permitir a conclusão.
+- **Timer:** duração líquida descontando pausas; acumulada em `tempo_total_minutos`.
+- **Histórico:** toda mutação relevante cria um `HistoricoTarefa` (audit trail imutável).
+
+**Campo `recorrencia_fim`:**
+```python
+recorrencia_fim = models.DateField('Repetir até', null=True, blank=True)
+# Se informado ao criar → gera todas as ocorrências antecipadamente
+# Se nulo → comportamento padrão (uma ocorrência por vez ao concluir)
+```
 
 ---
 
 ## `companies` — Empresas e Finanças
 
-**Responsabilidade:** Cadastro de clientes BPO e rastreamento de pagamentos.
+**Responsabilidade:** Cadastro de clientes BPO, rastreamento de pagamentos e controle de acesso por colaborador.
 
 | Arquivo | Conteúdo |
 |---------|----------|
 | `models.py` | `Empresa`, `Pagamento` |
-| `serializers.py` | `EmpresaSerializer`, `EmpresaDetalheSerializer`, `PagamentoSerializer` |
+| `serializers.py` | `EmpresaSerializer`, `EmpresaDetalheSerializer`, `PagamentoSerializer`, `ColaboradorSimpleSerializer` |
 | `views.py` | `EmpresaViewSet` com action `pagamentos` e `resumo` |
 
 **Campos relevantes de `Empresa`:**
-- `cnpj` — validação de formato
+- `cnpj` — único, validado no vínculo com ContaAzul
 - `mensalidade` — valor mensal do contrato
-- `status` — `ativo` · `inativo` · `prospecto`
-- `responsavel` — FK para `Usuario` (gestor responsável)
+- `status` — `active` · `inactive`
+- `responsavel` — FK para `Usuario` (gestor responsável principal)
+- `colaboradores` — ManyToMany para `Usuario` (múltiplos analistas/assistentes por empresa)
+
+**Filtro de acesso:**
+Analistas e assistentes (`perfil not in ['admin', 'manager']`) recebem automaticamente apenas as empresas onde aparecem em `responsavel` ou `colaboradores`. A lógica está em `EmpresaViewSet.get_queryset()`:
+```python
+if not user.is_gestor_ou_acima:
+    qs = qs.filter(Q(responsavel=user) | Q(colaboradores=user)).distinct()
+```
+
+---
+
+## `contaazul` — Integração ContaAzul
+
+**Responsabilidade:** Conexão OAuth 2.0 com o ERP ContaAzul por empresa, sincronização de contas a pagar/receber e criação automática de tarefas financeiras.
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `models.py` | `ContaAzulToken`, `ContaAzulVencimento` |
+| `services.py` | `ContaAzulClient` — OAuth, refresh de token, sync |
+| `views.py` | `oauth_connect`, `oauth_callback`, `sync_empresa`, `VencimentoListView`, `ConnectionStatusView` |
+| `serializers.py` | `ContaAzulVencimentoSerializer`, `ContaAzulTokenStatusSerializer` |
+
+**Fluxo OAuth:**
+1. Gestor clica em "Conectar ContaAzul" na tela da empresa → `GET /contaazul/connect/<id>/`
+2. Redireciona para `auth.contaazul.com` com `client_id`, `redirect_uri` e `state`
+3. Usuário loga no ContaAzul → redirecionado para `GET /contaazul/callback/?code=...`
+4. Backend troca o `code` por `access_token` + `refresh_token`
+5. **Validação de CNPJ:** consulta `GET /v1/empresa` no ContaAzul e compara com o CNPJ cadastrado no SN Gestor — rejeita se divergir
+6. Salva `ContaAzulToken` vinculado à empresa
+
+**Sincronização:**
+- Busca contas a pagar e receber nos últimos 30 dias e próximos 90 dias
+- `update_or_create` por `contaazul_id` — nunca duplica
+- Novas contas a pagar → cria `Tarefa` automática com prazo, valor e prioridade calculada
+- Status `pago/cancelado` → fecha a tarefa vinculada automaticamente
+- Token expirado → renovado automaticamente via `refresh_token` antes de cada chamada
+
+**Filtro de acesso:**
+Analistas e assistentes veem apenas vencimentos das suas empresas designadas (mesmo filtro de `companies`).
 
 ---
 

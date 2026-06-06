@@ -11,12 +11,19 @@ tags:
 
 [[index|← Início]] · [[fluxos|Fluxos]]
 
+## Ambiente de Produção
+
+- **Servidor:** AWS EC2 (Ubuntu 24.04)
+- **Domínio:** `app.gestaomedhospitalar.com`
+- **HTTPS:** Let's Encrypt via Certbot (renovação automática)
+- **Settings:** `config.settings.staging` (sem `SECURE_SSL_REDIRECT` enquanto não há load balancer)
+
 ## Pré-requisitos
 
 - Docker Desktop ≥ 24
 - Docker Compose v2
 - 2 GB RAM disponível
-- Porta 80 livre no host
+- Portas 80 e 443 liberadas no Security Group da EC2
 
 ---
 
@@ -215,18 +222,67 @@ docker compose up -d --build
 
 ---
 
+## SSL — Let's Encrypt (Certbot)
+
+```bash
+# Instala Certbot
+sudo apt update && sudo apt install certbot -y
+sudo mkdir -p /var/www/certbot
+
+# Gera o certificado (Docker deve estar parado)
+sudo certbot certonly --standalone \
+  -d app.gestaomedhospitalar.com \
+  --email contato@gestaomedhospitalar.com \
+  --agree-tos --non-interactive
+```
+
+O certificado é salvo em `/etc/letsencrypt/live/app.gestaomedhospitalar.com/`.  
+O `docker-compose.yml` monta esse diretório como volume read-only no container do Nginx.  
+Renovação automática configurada pelo Certbot via `systemd timer`.
+
+---
+
+## Variáveis de Ambiente — Produção
+
+```env
+DEBUG=False
+DJANGO_SETTINGS_MODULE=config.settings.staging
+SECRET_KEY=chave-secreta-forte
+ALLOWED_HOSTS=app.gestaomedhospitalar.com
+
+POSTGRES_DB=sn_gestor_db
+POSTGRES_USER=sn_gestor_user
+POSTGRES_PASSWORD=senha-forte
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
+TIME_ZONE=America/Sao_Paulo
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+
+CONTAAZUL_CLIENT_ID=5ppqevriukjbvmcq93n2kgpqle
+CONTAAZUL_CLIENT_SECRET=...
+CONTAAZUL_REDIRECT_URI=https://app.gestaomedhospitalar.com/contaazul/callback/
+```
+
+> [!warning] Nota sobre settings
+> Usar `staging.py` enquanto não houver HTTPS terminado em load balancer.  
+> Ao migrar para ALB/CloudFront com SSL offloading, mudar para `production.py`.
+
+---
+
 ## Checklist de Deploy em Produção
 
-- [ ] Gerar novo `SECRET_KEY` no `.env`
-- [ ] Definir `DEBUG=False`
-- [ ] Configurar `ALLOWED_HOSTS` com o domínio real
+- [x] Gerar novo `SECRET_KEY` no `.env`
+- [x] Definir `DEBUG=False`
+- [x] Configurar `ALLOWED_HOSTS` com o domínio real
+- [x] Certificado SSL via Certbot (Let's Encrypt)
+- [x] Nginx configurado com HTTPS e redirect HTTP→HTTPS
+- [x] Porta 5432 não exposta para o host no `docker-compose.yml`
+- [x] `CSRF_TRUSTED_ORIGINS` configurado no `staging.py`
+- [x] `CONTAAZUL_REDIRECT_URI` apontando para o domínio de produção
 - [ ] Substituir `runserver` por Gunicorn no `entrypoint.sh`
-- [ ] Configurar HTTPS no Nginx (Let's Encrypt / Certbot)
-- [ ] Remover IPs hardcoded do `nginx.conf` (`server_name`)
 - [ ] Configurar backup automático do `postgres_data`
-- [ ] Configurar variáveis de e-mail para envio real
-- [ ] Expor logs do scheduler (`/var/log/cron.log`)
-- [ ] Testar healthcheck dos containers
+- [ ] Configurar variáveis de e-mail para envio real (AWS SES)
 
 ---
 

@@ -19,8 +19,10 @@ Sistema de gestão BPO desenvolvido para a **SN Gestão Estratégica em Saúde**
 ## 📦 Módulos
 
 - **Autenticação** — Login com e-mail, perfis de acesso (Admin, Gestor, Analista, Assistente, Cliente)
-- **Gestão de Tarefas** — CRUD completo, checklist, chat por tarefa, timer, histórico de alterações, link de documento
-- **Gestão de Empresas** — Cadastro, responsável interno, histórico de pagamentos, recorrência automática de mensalidades
+- **Gestão de Tarefas** — CRUD completo, checklist, chat por tarefa, timer, histórico de alterações, link de documento, recorrência com geração antecipada por data final
+- **Gestão de Empresas** — Cadastro, múltiplos colaboradores por empresa, histórico de pagamentos
+- **Controle de Acesso por Empresa** — Analistas e assistentes visualizam apenas as empresas, tarefas e vencimentos das empresas às quais foram designados
+- **Integração ContaAzul** — OAuth 2.0, sincronização de contas a pagar/receber, validação de CNPJ no vínculo, criação automática de tarefas para vencimentos
 - **Dashboards** — Individual (por colaborador) e Geral (visão da operação), metas mensais
 - **Colaboradores** — Desempenho da equipe com progresso de metas
 - **Notificações** — Alertas de prazo por e-mail, relatório semanal automático (toda segunda-feira)
@@ -38,18 +40,24 @@ sn-gestor/
 ├── backend/
 │   ├── apps/
 │   │   ├── accounts/       # Autenticação e usuários
-│   │   ├── companies/      # Empresas e pagamentos
-│   │   ├── tasks/          # Tarefas, checklist, chat, timer
+│   │   ├── companies/      # Empresas, pagamentos e colaboradores
+│   │   ├── tasks/          # Tarefas, checklist, chat, timer, recorrência
+│   │   ├── contaazul/      # Integração OAuth + sync ContaAzul
 │   │   ├── dashboard/      # Dashboards e metas mensais
 │   │   ├── postits/        # Quadro de post-its
 │   │   ├── relatorios/     # Geração de PDF
 │   │   ├── portal/         # Portal do cliente
 │   │   └── frontend/       # Views HTML (serve as páginas)
-│   ├── config/             # Settings, URLs principais
+│   ├── config/
+│   │   └── settings/
+│   │       ├── base.py       # Configurações compartilhadas
+│   │       ├── development.py
+│   │       ├── staging.py    # AWS sem HTTPS (sem SECURE_SSL_REDIRECT)
+│   │       └── production.py
 │   ├── static/             # CSS e JS globais
 │   └── templates/          # Templates HTML
 ├── nginx/
-│   └── nginx.conf
+│   └── nginx.conf          # HTTPS app.gestaomedhospitalar.com
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -114,11 +122,14 @@ docker compose exec backend python manage.py createsuperuser
 | `/dashboard/colaboradores/` | Desempenho da equipe (gestor) |
 | `/tarefas/` | Lista de tarefas |
 | `/empresas/` | Lista de empresas |
+| `/financeiro/` | Vencimentos ContaAzul (todos os perfis) |
 | `/postits/` | Quadro de post-its |
 | `/relatorios/` | Relatórios PDF |
 | `/usuarios/` | Gestão de usuários (admin) |
 | `/perfil/` | Perfil do usuário logado |
 | `/portal/` | Portal do cliente |
+| `/contaazul/connect/<id>/` | Inicia OAuth ContaAzul |
+| `/contaazul/callback/` | Callback OAuth ContaAzul |
 | `/api/v1/` | API REST |
 
 ---
@@ -127,23 +138,31 @@ docker compose exec backend python manage.py createsuperuser
 
 ```env
 SECRET_KEY=sua-chave-secreta
-DEBUG=True
+DEBUG=False
+DJANGO_SETTINGS_MODULE=config.settings.staging
 
-POSTGRES_DB=sn_gestor
-POSTGRES_USER=sn_user
+ALLOWED_HOSTS=app.gestaomedhospitalar.com
+
+POSTGRES_DB=sn_gestor_db
+POSTGRES_USER=sn_gestor_user
 POSTGRES_PASSWORD=sua-senha
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
 
 TIME_ZONE=America/Sao_Paulo
 
-# E-mail SMTP (opcional)
+# E-mail SMTP
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_HOST_USER=seuemail@gmail.com
 EMAIL_HOST_PASSWORD=sua-senha-de-app
+
+# ContaAzul OAuth 2.0
+CONTAAZUL_CLIENT_ID=seu_client_id
+CONTAAZUL_CLIENT_SECRET=seu_client_secret
+CONTAAZUL_REDIRECT_URI=https://app.gestaomedhospitalar.com/contaazul/callback/
 ```
 
 ---
@@ -159,8 +178,10 @@ EMAIL_HOST_PASSWORD=sua-senha-de-app
 - [x] Fase 7 — Quadro de post-its
 - [x] Fase 8 — Frontend completo (todas as telas)
 - [x] Fase 9 — Portal do cliente
-- [ ] Fase 10 — PWA (Progressive Web App)
-- [ ] Deploy — Hostinger VPS com Docker + domínio + SSL
+- [x] Fase 10 — Integração ContaAzul (OAuth 2.0, sync vencimentos, validação CNPJ)
+- [x] Fase 11 — Controle de acesso por empresa (colaboradores por empresa, filtros por perfil)
+- [x] Fase 12 — Recorrência com data final (geração antecipada de todas as ocorrências)
+- [x] Deploy — AWS EC2 · `app.gestaomedhospitalar.com` · HTTPS (Let's Encrypt) · Docker
 
 ---
 
