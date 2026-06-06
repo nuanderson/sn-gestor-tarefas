@@ -15,6 +15,11 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
+# ── CSRF: domínios confiáveis ────────────────────
+CSRF_TRUSTED_ORIGINS = [
+    'https://app.gestaomedhospitalar.com',
+]
+
 # ── Segurança básica ─────────────────────────────
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
